@@ -1,3 +1,24 @@
+// =============================================================================
+// NeoTech / NMC Genetics Platform — PostgreSQL Schema (Drizzle ORM)
+// Version: 3.0 — Full Rewrite
+//
+// Database Responsibility Split:
+//   PostgreSQL (this file) — All business management: users, vendors, patients,
+//                            orders, samples, shipments, billing, helpdesk, audit.
+//   MongoDB                — Genetic core only: rsid variants, report engine,
+//                            condition-specific report collections, raw data.
+//
+// Cross-DB Bridge:
+//   sampleId (text, e.g. "BP1SL000001") is generated here and written into
+//   MongoDB GeneReportTemp documents. pdfPath on SamplesTable is written back
+//   by the report engine upon PDF generation.
+//
+// Roles (3 total):
+//   SUPER_ADMIN      — NeoTech god mode. Approves vendors, manages platform.
+//   ADMIN            — NeoTech ops. Test catalog, QC, report generation.
+//   BUSINESS_PARTNER — Vendor/clinic. Registers, gets approved, manages own data.
+// =============================================================================
+
 import {
   boolean,
   index,
@@ -18,22 +39,23 @@ import { relations, InferInsertModel, InferSelectModel } from "drizzle-orm";
 // =============================================================================
 
 /**
- * System-wide user roles. Only 2 roles exist for NMC staff.
- * Vendors/Business Partners have their own separate login portal.
+ * System-wide user roles. Only 3 roles exist in this platform.
  */
 export const UserRole = pgEnum("user_role", [
   "SUPER_ADMIN",       // Full platform access. Approves vendors, manages everything.
   "ADMIN",             // NeoTech ops staff. Test catalog, QC, data processing, reports.
+  "BUSINESS_PARTNER",  // Vendor / clinic. Manages own patients, orders, samples.
 ]);
 
 /**
  * Vendor registration/approval lifecycle.
- * Admin creates vendor, login URL is sent via email.
+ * A vendor cannot log in until their status is APPROVED.
  */
 export const VendorStatus = pgEnum("vendor_status", [
-  "ACTIVE",    // Vendor can access their portal
-  "SUSPENDED", // Temporarily disabled by SUPER_ADMIN
-  "INACTIVE",  // Permanently disabled
+  "PENDING",   // Registered, awaiting admin review.
+  "APPROVED",  // Approved by SUPER_ADMIN. Login credentials sent via email.
+  "REJECTED",  // Rejected by SUPER_ADMIN with reason.
+  "SUSPENDED", // Temporarily disabled by SUPER_ADMIN.
 ]);
 
 /** Sample type as collected. */
@@ -105,12 +127,18 @@ export const NotifyTarget = pgEnum("notify_target", [
 ]);
 
 // =============================================================================
-// USERS (NMC Staff Only)
+// USERS
 // =============================================================================
 
 /**
- * NMC Staff users: SUPER_ADMIN and ADMIN only.
- * BUSINESS_PARTNER is NOT a user role — vendors have separate login portal.
+ * All users in the system: SUPER_ADMIN, ADMIN, and BUSINESS_PARTNER.
+ *
+ * BUSINESS_PARTNER users are linked to a VendorsTable row via vendorId.
+ * SUPER_ADMIN and ADMIN users have vendorId = NULL.
+ *
+ * A BUSINESS_PARTNER user cannot log in until their vendor is APPROVED.
+ * On approval, a default password is generated and a reset link is emailed.
+ * isPasswordReset tracks whether the mandatory first-login reset is done.
  */
 export const UsersTable = pgTable(
   "users",
@@ -122,11 +150,14 @@ export const UsersTable = pgTable(
     name:             text("name").notNull(),
     email:            text("email").notNull(),         // Encrypted at app layer
     password:         text("password").notNull(),
-    mobile:            text("mobile"),                   // Encrypted at app layer
+    phone:            text("phone"),                   // Encrypted at app layer
+
+    // Tenant link — NULL for SUPER_ADMIN and ADMIN
+    vendorId:         uuid("vendor_id"),
 
     // Auth state
     isActive:         boolean("is_active").default(true).notNull(),
-    isPasswordReset:  boolean("is_password_reset").default(false).notNull(),
+    isPasswordReset:  boolean("is_password_reset").default(false).notNull(), // Must reset on first login
     emailVerified:    timestamp("email_verified", { mode: "date" }),
     lastLoginAt:      timestamp("last_login_at", { mode: "date" }),
 
@@ -136,6 +167,7 @@ export const UsersTable = pgTable(
   (t) => [
     uniqueIndex("users_email_key").on(t.email),
     index("users_role_idx").on(t.role),
+    index("users_vendor_idx").on(t.vendorId),
   ]
 );
 
@@ -143,7 +175,7 @@ export type User    = InferSelectModel<typeof UsersTable>;
 export type NewUser = InferInsertModel<typeof UsersTable>;
 
 // =============================================================================
-// AUTH TOKENS (NMC Staff)
+// AUTH TOKENS
 // =============================================================================
 
 export const EmailVerificationTokenTable = pgTable(
@@ -181,51 +213,57 @@ export const PasswordResetTokenTable = pgTable(
 /**
  * One row per business partner / vendor organisation.
  *
- * Creation flow:
- *   1. Admin creates vendor record with all details
- *   2. System generates unique vendorCode and temporary password
- *   3. Email with login URL and temporary password is sent to vendor email
- *   4. Vendor accesses separate login portal using the URL
- *   5. Vendor must change password on first login
- *   6. Vendor can update their settings after login
+ * Registration flow:
+ *   1. BP fills in registration form → row created with status PENDING.
+ *   2. SUPER_ADMIN reviews → sets status to APPROVED or REJECTED.
+ *   3. On APPROVED: UsersTable row created, default password emailed to BP.
+ *   4. BP must reset password on first login (isPasswordReset = false → true).
+ *
+ * Fields with "// Encrypted" are encrypted at the application layer.
  */
 export const VendorsTable = pgTable(
   "vendors",
   {
     id:             uuid("id").defaultRandom().primaryKey().notNull(),
-    vendorCode:     text("vendor_code").notNull().unique(),  // Unique business identifier
-    status:         VendorStatus("status").default("ACTIVE").notNull(),
+    status:         VendorStatus("status").default("PENDING").notNull(),
 
-    // Core identity
+    // --- Individual / Company toggle ---
+    isCompany:      boolean("is_company").default(false).notNull(),
+    code:           text("code"),            // BP short code / reference
+
+    // --- Core identity ---
     name:           text("name").notNull(),
-    contactNo:      text("contact_no").notNull(),            // Encrypted
-    gender:         text("gender").notNull(),                // M/F/O
-
-    costCentreNo:   text("cost_centre_no"),
-    mrNo:           text("mr_no"),
-    email:          text("email").notNull(),                 // Encrypted
-    password:       text("password").notNull(),              // Hashed password for vendor portal login
-    logo:           text("logo"),                            // URL to logo
-    remark:         text("remark"),
-    loginurl:       text("loginurl").notNull(),              // Unique login URL for vendor portal
-    
-    addedBy:        uuid("added_by").notNull(),              // References UsersTable.id (ADMIN who created)
-
-    // Auth state for vendor
-    isPasswordReset:  boolean("is_password_reset").default(false).notNull(), // Must reset on first login
-    lastLoginAt:      timestamp("last_login_at", { mode: "date" }),
-
-    // --- Company-only fields ---
-    address:        text("address").notNull(),               // Encrypted
-    cinNumber:      text("cin_number"),
-    vatNumber:      text("vat_number"),
-    gstNumber:      text("gst_number"),
+    contactPerson:  text("contact_person"),
+    phone:          text("phone"),           // Encrypted
+    email:          text("email").notNull(), // Encrypted
+    address:        text("address"),         // Encrypted
     city:           text("city"),
     state:          text("state"),
     country:        text("country"),
     zipCode:        text("zip_code"),
     website:        text("website"),
-    
+
+    // Logo stored as URL (uploaded to S3)
+    logo:           text("logo"),
+
+    // --- Company-only fields ---
+    cinNumber:      text("cin_number"),
+    vatNumber:      text("vat_number"),
+    gstNumber:      text("gst_number"),
+
+    // --- Bank details (JSONB — encrypted at app layer) ---
+    // Shape: { accountNo, accountName, swiftCode, ifscCode }
+    bankDetails:    jsonb("bank_details"),
+
+    // --- Uploaded documents ---
+    // Shape: [{ documentName: string, documentUrl: string }]
+    documents:      jsonb("documents"),
+
+    // --- Approval tracking ---
+    approvedBy:     uuid("approved_by"),    // References UsersTable (SUPER_ADMIN)
+    approvedAt:     timestamp("approved_at", { mode: "date" }),
+    rejectionReason: text("rejection_reason"),
+
     // Soft delete
     deletedAt:      timestamp("deleted_at", { mode: "date" }),
 
@@ -236,7 +274,6 @@ export const VendorsTable = pgTable(
     index("vendors_status_idx").on(t.status),
     index("vendors_email_idx").on(t.email),
     index("vendors_name_idx").on(t.name),
-    index("vendors_code_idx").on(t.vendorCode),
   ]
 );
 
@@ -244,33 +281,15 @@ export type Vendor    = InferSelectModel<typeof VendorsTable>;
 export type NewVendor = InferInsertModel<typeof VendorsTable>;
 
 // =============================================================================
-// VENDOR AUTH TOKENS
-// =============================================================================
-
-export const VendorPasswordResetTokenTable = pgTable(
-  "vendor_password_reset_tokens",
-  {
-    id:        uuid("id").defaultRandom().primaryKey().notNull(),
-    vendorId:  uuid("vendor_id").notNull(),  // References VendorsTable.id
-    token:     uuid("token").notNull(),
-    expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
-  },
-  (t) => [
-    uniqueIndex("vprt_vendor_token_key").on(t.vendorId, t.token),
-    uniqueIndex("vprt_token_key").on(t.token),
-  ]
-);
-
-export type VendorPasswordResetToken = InferSelectModel<typeof VendorPasswordResetTokenTable>;
-export type NewVendorPasswordResetToken = InferInsertModel<typeof VendorPasswordResetTokenTable>;
-
-// =============================================================================
-// VENDOR SETTINGS (White-labeling & Configuration)
+// VENDOR SETTINGS
 // =============================================================================
 
 /**
  * Per-vendor operational and white-label settings.
- * One row per vendor, created automatically when vendor is created.
+ * One row per vendor, created automatically on vendor approval.
+ *
+ * Separated from VendorsTable to keep vendor registration lean
+ * and allow settings to evolve independently.
  */
 export const VendorSettingsTable = pgTable(
   "vendor_settings",
@@ -282,123 +301,47 @@ export const VendorSettingsTable = pgTable(
     deliverable: Deliverable("deliverable").default("REPORT").notNull(),
 
     // --- Raw data delivery ---
+    // S3 bucket name for raw data / report delivery. Set by Admin after IT provision.
     s3BucketName:      text("s3_bucket_name"),
-    rawDataEmail:      text("raw_data_email"),
+    rawDataEmail:      text("raw_data_email"), // Email to receive raw data files
 
     // --- Privacy settings ---
     hidePersonalInfo:  boolean("hide_personal_info").default(false).notNull(),
     passwordProtectedReport: boolean("password_protected_report").default(false).notNull(),
+
+    // Password rule for protected reports:
+    // "NAME4_DOB"     → first 4 letters of name + DDMMYY
+    // "NAME4_MOBILE4" → first 4 letters of name + first 4 of mobile
     passwordRule:      text("password_rule").default("NAME4_DOB").notNull(),
-
-    // --- Logo & Images ---
-    logoImg:           text("logo_img"),
-    coverLogoImgName:  text("cover_logo_img_name"),
-
-    // --- Cover & Page Settings ---
-    coverPage:         boolean("cover_page").default(false).notNull(),
-    skinCoverBackPage: boolean("skin_cover_back_page").default(false).notNull(),
-    blankPage:         boolean("blank_page").default(false).notNull(),
-    sectionImages:     boolean("section_images").default(false).notNull(),
-    summaryPages:      boolean("summary_pages").default(false).notNull(),
-    splitWellnessReport: boolean("split_wellness_report").default(false).notNull(),
-
-    // --- Cover Images ---
-    coverPageImgName:      text("cover_page_img_name"),
-    backCoverPageImgName:  text("back_cover_page_img_name"),
-
-    // --- Content ---
-    welcomeMessage:    text("welcome_message"),
-    about:             text("about"),
-    aboutImgName:      text("about_img_name"),
-    legalDisContent:   text("legal_dis_content"),
-
-    // --- Signature Settings ---
-    sigTitle:          text("sig_title"),
-    sigName:           text("sig_name"),
-    sigImgName:        text("sig_img_name"),
-
-    // --- Theme Colors ---
-    aboutThemeColor:   text("about_theme_color"),
-    aboutTextColor:    text("about_text_color"),
-    testThemeColor:    text("test_theme_color"),
-    testTextColor:     text("test_text_color"),
-    fitnessThemeColor: text("fitness_theme_color"),
-    fitnessTextColor:  text("fitness_text_color"),
-    weightThemeColor:  text("weight_theme_color"),
-    weightTextColor:   text("weight_text_color"),
-    detoxThemeColor:   text("detox_theme_color"),
-    detoxTextColor:    text("detox_text_color"),
-    cardiometThemeColor: text("cardiomet_theme_color"),
-    cardiometTextColor:  text("cardiomet_text_color"),
-
-    // --- Section Images ---
-    dietPage1Img:      text("diet_page1_img"),
-    dietPage2Img:      text("diet_page2_img"),
-    fitnessPage1Img:   text("fitness_page1_img"),
-    fitnessPage2Img:   text("fitness_page2_img"),
-    weightPage1Img:    text("weight_page1_img"),
-    weightPage2Img:    text("weight_page2_img"),
-    detoxPage1Img:     text("detox_page1_img"),
-    detoxPage2Img:     text("detox_page2_img"),
-    imageOverview:     text("image_overview"),
-
-    // --- Skin Report Settings ---
-    skinCoverPageImg:      text("skin_cover_page_img"),
-    skinBackCoverPageImg:  text("skin_back_cover_page_img"),
-
-    // --- Cardiomet Report Settings ---
-    cardiometPagesLogo:      boolean("cardiomet_pages_logo").default(false).notNull(),
-    cardiometBackCoverPage:  text("cardiomet_back_cover_page"),
-    cardiometCoverPageLogo:  boolean("cardiomet_cover_page_logo").default(false).notNull(),
-
-    // --- Immunity Report Settings ---
-    immunityCoverPage:        text("immunity_cover_page"),
-    immunityBackCoverPage:    text("immunity_back_cover_page"),
-    immunityBackCoverPageLogo: boolean("immunity_back_cover_page_logo").default(false).notNull(),
-    immunityCoverPageLogo:    boolean("immunity_cover_page_logo").default(false).notNull(),
-
-    // --- Autoimmune Report Settings ---
-    autoimmuneCoverPage:        text("autoimmune_cover_page"),
-    autoimmuneBackCoverPage:    text("autoimmune_back_cover_page"),
-    autoimmuneBackCoverPageLogo: boolean("autoimmune_back_cover_page_logo").default(false).notNull(),
-    autoimmuneCoverPageLogo:    boolean("autoimmune_cover_page_logo").default(false).notNull(),
-
-    // --- Women's Health Report Settings ---
-    womanCoverPage:        text("woman_cover_page"),
-    womanBackCoverPage:    text("woman_back_cover_page"),
-    womanBackCoverPageLogo: boolean("woman_back_cover_page_logo").default(false).notNull(),
-    womanCoverPageLogo:    boolean("woman_cover_page_logo").default(false).notNull(),
-
-    // --- Men's Health Report Settings ---
-    menCoverPage:        text("men_cover_page"),
-    menBackCoverPage:    text("men_back_cover_page"),
-    menBackCoverPageLogo: boolean("men_back_cover_page_logo").default(false).notNull(),
-    menCoverPageLogo:    boolean("men_cover_page_logo").default(false).notNull(),
-
-    // --- Eye Health Report Settings ---
-    eyeCoverPage:        text("eye_cover_page"),
-    eyeBackCoverPage:    text("eye_back_cover_page"),
-    eyeBackCoverPageLogo: boolean("eye_back_cover_page_logo").default(false).notNull(),
-    eyeCoverPageLogo:    boolean("eye_cover_page_logo").default(false).notNull(),
-
-    // --- Kidney Health Report Settings ---
-    kidneyCoverPage:        text("kidney_cover_page"),
-    kidneyBackCoverPage:    text("kidney_back_cover_page"),
-    kidneyBackCoverPageLogo: boolean("kidney_back_cover_page_logo").default(false).notNull(),
-    kidneyCoverPageLogo:    boolean("kidney_cover_page_logo").default(false).notNull(),
-
-    // --- Sleep Health Report Settings ---
-    sleepCoverPage:        text("sleep_cover_page"),
-    sleepBackCoverPage:    text("sleep_back_cover_page"),
-    sleepBackCoverPageLogo: boolean("sleep_back_cover_page_logo").default(false).notNull(),
-    sleepCoverPageLogo:    boolean("sleep_cover_page_logo").default(false).notNull(),
-
-    // --- Vendor Address for Reports ---
-    vendorAddress:     text("vendor_address"),
 
     // --- Notification settings ---
     notifyTarget:      NotifyTarget("notify_target").default("BOTH").notNull(),
+    // Which notification events are enabled:
+    // Shape: { forgotPassword, changePassword, shipmentCreated, shipmentCouriered,
+    //          shipmentReceived, qaPassed, sampleRejected, reportGenerated }
     notificationEvents: jsonb("notification_events"),
+
+    // --- White labeling (report branding) ---
+    whiteLabel:        boolean("white_label").default(false).notNull(),
+
+    // General report settings:
+    // Shape: { welcomeNote, legalDisclaimer, hasBlankPages, hasSectionCover,
+    //          hasSummaryPages, hasBackCover }
+    reportConfig:      jsonb("report_config"),
+
+    // Font settings:
+    // Shape: { baseFont, baseFontSize, nameTitle, aboutUsImage, aboutUsContent }
+    fontConfig:        jsonb("font_config"),
+
+    // Signatures:
+    // Shape: [{ name, designation, signatureUrl }]
+    signatures:        jsonb("signatures"),
+
+    // Cover page images per report section:
+    // Shape: { wellness: { frontPage, backCover, dietLeft, dietRight,
+    //          weightLeft, weightRight, fitnessLeft, fitnessRight,
+    //          detoxLeft, detoxRight }, ... }
+    coverPages:        jsonb("cover_pages"),
 
     createdAt:         timestamp("created_at").defaultNow().notNull(),
     updatedAt:         timestamp("updated_at").defaultNow().notNull(),
@@ -412,65 +355,6 @@ export type VendorSettings    = InferSelectModel<typeof VendorSettingsTable>;
 export type NewVendorSettings = InferInsertModel<typeof VendorSettingsTable>;
 
 // =============================================================================
-// VENDOR ETHNICITY MASTER
-// =============================================================================
-
-/**
- * Master table for ethnicities supported by each vendor.
- * Vendors can have multiple ethnicities they work with.
- */
-export const VendorEthnicityMasterTable = pgTable(
-  "vendor_ethnicity_master",
-  {
-    id:         uuid("id").defaultRandom().primaryKey().notNull(),
-    ethnicity:  text("ethnicity").notNull(),
-    vendorId:   uuid("vendor_id").notNull(),  // References VendorsTable.id
-    
-    createdAt:  timestamp("created_at").defaultNow().notNull(),
-    updatedAt:  timestamp("updated_at").defaultNow().notNull(),
-  },
-  (t) => [
-    uniqueIndex("vendor_ethnicity_unique").on(t.vendorId, t.ethnicity),
-    index("vendor_ethnicity_vendor_idx").on(t.vendorId),
-    index("vendor_ethnicity_name_idx").on(t.ethnicity),
-  ]
-);
-
-export type VendorEthnicity    = InferSelectModel<typeof VendorEthnicityMasterTable>;
-export type NewVendorEthnicity = InferInsertModel<typeof VendorEthnicityMasterTable>;
-
-// =============================================================================
-// VENDOR HOSPITAL MASTER
-// =============================================================================
-
-/**
- * Master table for hospitals/clinics associated with each vendor.
- * Vendors can have multiple hospital partners.
- */
-export const VendorHospitalMasterTable = pgTable(
-  "vendor_hospital_master",
-  {
-    id:         uuid("id").defaultRandom().primaryKey().notNull(),
-    hospital:   text("hospital").notNull(),
-    vendorId:   uuid("vendor_id").notNull(),  // References VendorsTable.id
-    address:    text("address").notNull(),    // Encrypted
-    contactNo:  text("contact_no").notNull(), // Encrypted
-    
-    isActive:   boolean("is_active").default(true).notNull(),
-    createdAt:  timestamp("created_at").defaultNow().notNull(),
-    updatedAt:  timestamp("updated_at").defaultNow().notNull(),
-  },
-  (t) => [
-    uniqueIndex("vendor_hospital_unique").on(t.vendorId, t.hospital),
-    index("vendor_hospital_vendor_idx").on(t.vendorId),
-    index("vendor_hospital_name_idx").on(t.hospital),
-  ]
-);
-
-export type VendorHospital    = InferSelectModel<typeof VendorHospitalMasterTable>;
-export type NewVendorHospital = InferInsertModel<typeof VendorHospitalMasterTable>;
-
-// =============================================================================
 // TEST CATALOG
 // =============================================================================
 
@@ -480,6 +364,9 @@ export type NewVendorHospital = InferInsertModel<typeof VendorHospitalMasterTabl
  * Hierarchy via parentTestId:
  *   NULL parentTestId = root package (e.g. "Wellness All")
  *   parentTestId set  = sub-test within a package (e.g. "Diet", "Skin")
+ *
+ * Mirrors the MongoDB TestMaster collection so order creation
+ * does not require a MongoDB round-trip.
  */
 export const TestCatalogTable = pgTable(
   "test_catalog",
@@ -520,6 +407,10 @@ export type NewTestCatalog = InferInsertModel<typeof TestCatalogTable>;
 /**
  * Vendor-specific price overrides for tests.
  * If no override exists, the price from TestCatalogTable.price is used.
+ *
+ * Resolution order:
+ *   1. Vendor-specific row (vendorId NOT NULL, testCatalogId matches)
+ *   2. Platform default (TestCatalogTable.price)
  */
 export const PricelistTable = pgTable(
   "pricelist",
@@ -553,6 +444,13 @@ export type NewPricelist = InferInsertModel<typeof PricelistTable>;
  *
  * Scope: unique per vendor. The same individual at two different
  * vendors = two separate rows.
+ *
+ * PII fields (name, phone, email, address) are encrypted at the app layer.
+ * After QC is passed on a sample, personal info is hidden from non-privileged
+ * roles — enforced at the API layer, not the schema layer.
+ *
+ * Full genetic and clinical data lives in MongoDB. This table stores
+ * the data needed for order management, report addressing, and filtering.
  */
 export const PatientsTable = pgTable(
   "patients",
@@ -562,6 +460,8 @@ export const PatientsTable = pgTable(
     /**
      * Human-readable patient ID. Auto-generated.
      * Format for BP patients:  "BP1PT000001"
+     * Format for NMC direct:   "NMCPT000001"
+     * Used as the reference key into MongoDB.
      */
     patientId:       text("patient_id").notNull(),
 
@@ -591,7 +491,15 @@ export const PatientsTable = pgTable(
     country:         text("country"),
     zipCode:         text("zip_code"),
 
-    // --- Medical History (stored as JSONB) ---
+    // --- Medical History (stored as JSONB — full detail in MongoDB) ---
+    // Shape: {
+    //   patientHistory: string,       // Known diseases e.g. Diabetes, Allergy
+    //   medication: string,
+    //   familyHistory: [{ relationship: string, disease: string }],
+    //   lifestyle: { smoker: boolean, alcoholic: string },
+    //   // AMI study criteria fields if applicable:
+    //   amiCriteria: { ... }
+    // }
     medicalHistory:  jsonb("medical_history"),
 
     isActive:        boolean("is_active").default(true).notNull(),
@@ -599,6 +507,7 @@ export const PatientsTable = pgTable(
     updatedAt:       timestamp("updated_at").defaultNow().notNull(),
   },
   (t) => [
+    // patientId unique within a vendor (not globally)
     uniqueIndex("patients_vendor_patient_key").on(t.vendorId, t.patientId),
     index("patients_vendor_idx").on(t.vendorId),
     index("patients_name_idx").on(t.firstName, t.lastName),
@@ -615,6 +524,10 @@ export type NewPatient = InferInsertModel<typeof PatientsTable>;
 /**
  * One order per patient visit / test request.
  * An order links a patient to one or more test selections.
+ * Multiple samples (one per test type) are created under an order.
+ *
+ * Created by BUSINESS_PARTNER or ADMIN (on behalf of BP).
+ * When created on behalf of BP by ADMIN, an email is sent to BP confirming entry.
  */
 export const OrdersTable = pgTable(
   "orders",
@@ -630,6 +543,9 @@ export const OrdersTable = pgTable(
     vendorId:      uuid("vendor_id").notNull(),
     patientId:     uuid("patient_id").notNull(),  // References PatientsTable.id
     createdBy:     uuid("created_by").notNull(),  // References UsersTable.id
+
+    // If ADMIN created this on behalf of a BP, log which BP
+    onBehalfOf:    uuid("on_behalf_of"),          // References VendorsTable.id
 
     totalAmount:   numeric("total_amount", { precision: 10, scale: 2 }),
     currency:      text("currency").default("INR").notNull(),
@@ -659,6 +575,12 @@ export type NewOrder = InferInsertModel<typeof OrdersTable>;
 /**
  * One sample per test type within an order.
  * Tracks the physical sample + genetic data pipeline + report status.
+ *
+ * Cross-database bridge:
+ *   sampleId   → written into MongoDB GeneReportTemp as the linking key.
+ *   nmcgId     → internal NMC lab ID (format: NMCGYY000001), assigned on QC pass.
+ *   pdfPath    → written back here by the MongoDB report engine on PDF generation.
+ *   mongoReportId → MongoDB document _id of the generated report document.
  */
 export const SamplesTable = pgTable(
   "samples",
@@ -668,6 +590,7 @@ export const SamplesTable = pgTable(
     /**
      * Auto-generated public sample ID.
      * BP patient:   "BP1SL000001"
+     * NMC direct:   "NMCSL000001"
      * Printed on reports and kit labels.
      */
     sampleId:        text("sample_id").notNull(),
@@ -675,11 +598,13 @@ export const SamplesTable = pgTable(
     /**
      * Internal NMC lab ID. Assigned when QC is passed.
      * Format: NMCGYY000001 (YY = 2-digit year, 6-digit sequence).
+     * Used on barcodes and all internal NMC communication.
      */
     nmcgId:          text("nmcg_id"),
 
     /**
      * Optional additional ID supplied by the Business Partner.
+     * If provided, printed on report instead of sampleId.
      */
     partnerSampleId: text("partner_sample_id"),
 
@@ -691,11 +616,13 @@ export const SamplesTable = pgTable(
 
     // --- Physical sample details ---
     sampleType:      SampleType("sample_type").notNull(),
-    kitBarcode:      text("kit_barcode"),               // GFX / Kit ID
-    trfUrl:          text("trf_url"),                   // S3 URL of uploaded TRF/consent form
+    kitBarcode:      text("kit_barcode"),               // GFX / Kit ID (optional)
+    trfUrl:          text("trf_url"),                   // S3 URL of uploaded TRF / consent form
     dateSampleTaken: timestamp("date_sample_taken", { mode: "date" }),
 
     // --- Referring doctor / hospital ---
+    // Shape: { firstName, lastName, hospitalName, address, city, state,
+    //          country, zipCode, phone, email }
     referringDoctor: jsonb("referring_doctor"),
 
     // --- Pipeline status ---
@@ -716,11 +643,14 @@ export const SamplesTable = pgTable(
     // --- Genetic data pipeline flags ---
     csvUploaded:       boolean("csv_uploaded").default(false).notNull(),
     csvValidated:      boolean("csv_validated").default(false).notNull(),
+    // Validation summary for quick display without MongoDB call:
+    // Shape: { total: number, valid: number, invalid: number, errors: [] }
     validationSummary: jsonb("validation_summary"),
 
     // --- Cross-DB report pointers ---
-    pdfPath:           text("pdf_path"),
-    mongoReportId:     text("mongo_report_id"),
+    // Written by MongoDB report engine on PDF generation:
+    pdfPath:           text("pdf_path"),          // S3 path to generated PDF
+    mongoReportId:     text("mongo_report_id"),   // MongoDB _id of report document
     reportGenerated:   boolean("report_generated").default(false).notNull(),
 
     // Report release
@@ -751,6 +681,12 @@ export type NewSample = InferInsertModel<typeof SamplesTable>;
 
 /**
  * A shipment bundles one or more samples for physical transport to NMC lab.
+ * One shipment → many samples (via ShipmentSamplesTable junction).
+ *
+ * Created by BUSINESS_PARTNER. Received and processed by ADMIN (QC role).
+ * On acceptance: nmcgId is assigned to each sample in SamplesTable.
+ * On rejection: rejection reason is written to SamplesTable.qcRejectionReason
+ *               and a notification is sent to the BP per their notification settings.
  */
 export const ShipmentsTable = pgTable(
   "shipments",
@@ -794,6 +730,7 @@ export type NewShipment = InferInsertModel<typeof ShipmentsTable>;
 
 /**
  * Junction table: one shipment → many samples.
+ * Tracks per-sample acceptance/rejection within a shipment.
  */
 export const ShipmentSamplesTable = pgTable(
   "shipment_samples",
@@ -802,6 +739,7 @@ export const ShipmentSamplesTable = pgTable(
     shipmentId:   uuid("shipment_id").notNull(),   // References ShipmentsTable.id
     sampleId:     uuid("sample_id").notNull(),     // References SamplesTable.id
 
+    // Per-sample QC decision within this shipment
     accepted:     boolean("accepted"),             // NULL = not yet reviewed
     rejectionReason: text("rejection_reason"),
     reviewedBy:   uuid("reviewed_by"),             // ADMIN who accepted/rejected
@@ -823,6 +761,7 @@ export type NewShipmentSample = InferInsertModel<typeof ShipmentSamplesTable>;
 
 /**
  * NeoTech raises invoices against vendors.
+ * Can be per-order or per billing period.
  */
 export const InvoicesTable = pgTable(
   "invoices",
@@ -830,7 +769,7 @@ export const InvoicesTable = pgTable(
     id:          uuid("id").defaultRandom().primaryKey().notNull(),
     invoiceNo:   text("invoice_no").notNull(),
     vendorId:    uuid("vendor_id").notNull(),
-    orderId:     uuid("order_id"),
+    orderId:     uuid("order_id"),               // NULL for period-based invoices
 
     amount:      numeric("amount",       { precision: 10, scale: 2 }).notNull(),
     tax:         numeric("tax",          { precision: 10, scale: 2 }).default("0").notNull(),
@@ -863,13 +802,15 @@ export type NewInvoice = InferInsertModel<typeof InvoicesTable>;
 
 /**
  * Support tickets raised by BUSINESS_PARTNER users or NMC staff.
+ * BP users can see only their own tickets.
+ * ADMIN / SUPER_ADMIN can see all tickets and respond.
  */
 export const HelpdeskTable = pgTable(
   "helpdesk",
   {
     id:         uuid("id").defaultRandom().primaryKey().notNull(),
     vendorId:   uuid("vendor_id"),                  // NULL if raised by NMC staff internally
-    raisedBy:   uuid("raised_by").notNull(),        // References UsersTable.id
+    raisedBy:   uuid("raised_by").notNull(),
 
     subject:    text("subject").notNull(),
     body:       text("body").notNull(),
@@ -918,6 +859,9 @@ export type NewTicketReply = InferInsertModel<typeof TicketRepliesTable>;
 
 /**
  * Append-only audit trail for all write operations.
+ * Per workflow: all admin, QC, and data entry actions must be logged
+ * with actor, timestamp, and before/after snapshots.
+ * Never updated or deleted.
  */
 export const AuditLogTable = pgTable(
   "audit_log",
@@ -926,16 +870,19 @@ export const AuditLogTable = pgTable(
     actorId:   uuid("actor_id").notNull(),   // User who performed the action
     vendorId:  uuid("vendor_id"),            // Vendor context if applicable
 
+    // e.g. "SAMPLE_STATUS_UPDATED", "PATIENT_EDITED", "REPORT_RELEASED",
+    //      "VENDOR_APPROVED", "QC_REJECTED"
     action:    text("action").notNull(),
-    entity:    text("entity").notNull(),     // Table name
-    entityId:  text("entity_id"),            // Row affected
+
+    entity:    text("entity").notNull(),     // Table name e.g. "samples", "patients"
+    entityId:  text("entity_id"),            // Row affected (text to support both uuid and text PKs)
 
     before:    jsonb("before"),              // Previous state snapshot
     after:     jsonb("after"),               // New state snapshot
 
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
-    note:      text("note"),
+    note:      text("note"),                 // Free-text reason (e.g. why a field was edited)
 
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
@@ -955,19 +902,18 @@ export type NewAuditLog = InferInsertModel<typeof AuditLogTable>;
 // DRIZZLE RELATIONS
 // =============================================================================
 
-export const usersRelations = relations(UsersTable, ({ many }) => ({
+export const usersRelations = relations(UsersTable, ({ one, many }) => ({
+  vendor:         one(VendorsTable,  { fields: [UsersTable.vendorId],  references: [VendorsTable.id] }),
   patients:       many(PatientsTable),
   orders:         many(OrdersTable),
   samples:        many(SamplesTable),
   tickets:        many(HelpdeskTable),
   ticketReplies:  many(TicketRepliesTable),
-  createdVendors: many(VendorsTable),
 }));
 
 export const vendorsRelations = relations(VendorsTable, ({ one, many }) => ({
+  users:          many(UsersTable),
   settings:       one(VendorSettingsTable, { fields: [VendorsTable.id], references: [VendorSettingsTable.vendorId] }),
-  ethnicities:    many(VendorEthnicityMasterTable),
-  hospitals:      many(VendorHospitalMasterTable),
   patients:       many(PatientsTable),
   orders:         many(OrdersTable),
   samples:        many(SamplesTable),
@@ -975,24 +921,10 @@ export const vendorsRelations = relations(VendorsTable, ({ one, many }) => ({
   invoices:       many(InvoicesTable),
   pricelist:      many(PricelistTable),
   tickets:        many(HelpdeskTable),
-  addedByUser:    one(UsersTable, { fields: [VendorsTable.addedBy], references: [UsersTable.id] }),
-  passwordResetTokens: many(VendorPasswordResetTokenTable),
 }));
 
 export const vendorSettingsRelations = relations(VendorSettingsTable, ({ one }) => ({
   vendor: one(VendorsTable, { fields: [VendorSettingsTable.vendorId], references: [VendorsTable.id] }),
-}));
-
-export const vendorEthnicityRelations = relations(VendorEthnicityMasterTable, ({ one }) => ({
-  vendor: one(VendorsTable, { fields: [VendorEthnicityMasterTable.vendorId], references: [VendorsTable.id] }),
-}));
-
-export const vendorHospitalRelations = relations(VendorHospitalMasterTable, ({ one }) => ({
-  vendor: one(VendorsTable, { fields: [VendorHospitalMasterTable.vendorId], references: [VendorsTable.id] }),
-}));
-
-export const vendorPasswordResetTokenRelations = relations(VendorPasswordResetTokenTable, ({ one }) => ({
-  vendor: one(VendorsTable, { fields: [VendorPasswordResetTokenTable.vendorId], references: [VendorsTable.id] }),
 }));
 
 export const testCatalogRelations = relations(TestCatalogTable, ({ one, many }) => ({

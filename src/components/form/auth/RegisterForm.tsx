@@ -45,7 +45,7 @@ const RegisterForm = ({ text, role }: RegisterFormProps) => {
       email: "",
       mobile: "",
       password: "",
-      role: "USER",
+      role: "ADMIN",
     },
   });
 

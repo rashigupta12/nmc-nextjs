@@ -32,7 +32,7 @@ export default function Dashboard() {
       case "ADMIN":
         router.push("/dashboard/admin/");
         break;
-      case "USER":
+      case "SUPER_ADMIN":
           router.push("/dashboard/user");
           break;
       default:
