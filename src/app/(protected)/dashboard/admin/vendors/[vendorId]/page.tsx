@@ -1,0 +1,394 @@
+// src/app/(protected)/dashboard/admin/vendors/[vendorId]/page.tsx
+"use client";
+
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { getVendorById, updateVendorStatus, deleteVendor } from "@/actions/admin/vendor-actions";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "@/hooks/use-toast";
+import { 
+  ArrowLeft, 
+  Edit, 
+  Settings, 
+  Trash2, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Globe,
+  Building2,
+  Calendar,
+  User,
+  AlertCircle
+} from "lucide-react";
+import Link from "next/link";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { format } from "date-fns";
+
+export default function VendorDetailsPage() {
+  const params = useParams();
+  const router = useRouter();
+  const vendorId = params.vendorId as string;
+  const [vendor, setVendor] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadVendor();
+  }, [vendorId]);
+
+  async function loadVendor() {
+    try {
+      const result = await getVendorById(vendorId);
+      if (result && "id" in result && !("error" in result)) {
+        setVendor(result);
+      } else if ("error" in result) {
+        
+        router.push("/dashboard/admin/vendors");
+      }
+    } catch (error) {
+      console.error("Error loading vendor:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleStatusChange(status: "ACTIVE" | "SUSPENDED" | "INACTIVE") {
+    const result = await updateVendorStatus(vendorId, status);
+    if (result.success) {
+      toast({
+        title: "Success",
+        description: `Vendor status updated to ${status}`,
+      });
+      loadVendor();
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: result.error,
+      });
+    }
+  }
+
+  async function handleDelete() {
+    const result = await deleteVendor(vendorId);
+    if (result.success) {
+      toast({
+        title: "Success",
+        description: "Vendor deleted successfully",
+      });
+      router.push("/dashboard/admin/vendors");
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: result.error,
+      });
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading vendor details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!vendor) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <p className="text-gray-600">Vendor not found</p>
+          <Button className="mt-4" onClick={() => router.push("/dashboard/admin/vendors")}>
+            Back to Vendors
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.back()}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{vendor.name}</h1>
+            <p className="text-muted-foreground mt-1">
+              Vendor Code: {vendor.vendorCode}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Link href={`/dashboard/admin/vendors/${vendorId}/settings`}>
+            <Button variant="outline">
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
+          </Link>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete the vendor
+                  and all associated data.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </div>
+
+      {/* Status Badge */}
+      <div className="flex items-center gap-4">
+        <Badge 
+          className={`
+            ${vendor.status === "ACTIVE" ? "bg-green-100 text-green-800" : ""}
+            ${vendor.status === "SUSPENDED" ? "bg-yellow-100 text-yellow-800" : ""}
+            ${vendor.status === "INACTIVE" ? "bg-gray-100 text-gray-800" : ""}
+            px-3 py-1
+          `}
+        >
+          {vendor.status}
+        </Badge>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleStatusChange("ACTIVE")}
+            disabled={vendor.status === "ACTIVE"}
+          >
+            Activate
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleStatusChange("SUSPENDED")}
+            disabled={vendor.status === "SUSPENDED"}
+          >
+            Suspend
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleStatusChange("INACTIVE")}
+            disabled={vendor.status === "INACTIVE"}
+          >
+            Deactivate
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Contact Information */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Contact Information</CardTitle>
+            <CardDescription>Vendor contact details and address</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-start gap-3">
+                <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Email</p>
+                  <p className="text-sm text-muted-foreground">{vendor.email}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Contact Number</p>
+                  <p className="text-sm text-muted-foreground">{vendor.contactNo}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <User className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Contact Person Gender</p>
+                  <p className="text-sm text-muted-foreground">
+                    {vendor.gender === "M" ? "Male" : vendor.gender === "F" ? "Female" : "Other"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Globe className="h-4 w-4 text-muted-foreground mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Website</p>
+                  <p className="text-sm text-muted-foreground">
+                    {vendor.website ? (
+                      <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        {vendor.website}
+                      </a>
+                    ) : (
+                      "Not provided"
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="flex items-start gap-3">
+              <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">Address</p>
+                <p className="text-sm text-muted-foreground">{vendor.address}</p>
+                {vendor.city && <p className="text-sm text-muted-foreground">{vendor.city}, {vendor.state} {vendor.zipCode}</p>}
+                {vendor.country && <p className="text-sm text-muted-foreground">{vendor.country}</p>}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Business Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Business Information</CardTitle>
+            <CardDescription>Tax and registration details</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {vendor.gstNumber && (
+              <div>
+                <p className="text-sm font-medium">GST Number</p>
+                <p className="text-sm text-muted-foreground">{vendor.gstNumber}</p>
+              </div>
+            )}
+            {vendor.cinNumber && (
+              <div>
+                <p className="text-sm font-medium">CIN Number</p>
+                <p className="text-sm text-muted-foreground">{vendor.cinNumber}</p>
+              </div>
+            )}
+            {vendor.vatNumber && (
+              <div>
+                <p className="text-sm font-medium">VAT Number</p>
+                <p className="text-sm text-muted-foreground">{vendor.vatNumber}</p>
+              </div>
+            )}
+            {vendor.costCentreNo && (
+              <div>
+                <p className="text-sm font-medium">Cost Centre Number</p>
+                <p className="text-sm text-muted-foreground">{vendor.costCentreNo}</p>
+              </div>
+            )}
+            {vendor.mrNo && (
+              <div>
+                <p className="text-sm font-medium">MR Number</p>
+                <p className="text-sm text-muted-foreground">{vendor.mrNo}</p>
+              </div>
+            )}
+            {vendor.remark && (
+              <div>
+                <p className="text-sm font-medium">Remarks</p>
+                <p className="text-sm text-muted-foreground">{vendor.remark}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Additional Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Additional Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-start gap-3">
+              <Building2 className="h-4 w-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">Added By</p>
+                <p className="text-sm text-muted-foreground">
+                  {vendor.addedByUser?.name || "Unknown"} ({vendor.addedByUser?.email})
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">Created At</p>
+                <p className="text-sm text-muted-foreground">
+                  {format(new Date(vendor.createdAt), "dd MMM yyyy, hh:mm a")}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">Last Updated</p>
+                <p className="text-sm text-muted-foreground">
+                  {format(new Date(vendor.updatedAt), "dd MMM yyyy, hh:mm a")}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Login Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Login Information</CardTitle>
+          <CardDescription>Vendor portal access details</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm font-medium">Login URL</p>
+              <p className="text-sm text-blue-600 break-all">{vendor.loginurl}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium">Password Reset Required</p>
+              <Badge variant={vendor.isPasswordReset ? "default" : "secondary"}>
+                {vendor.isPasswordReset ? "Yes" : "No"}
+              </Badge>
+            </div>
+            {vendor.lastLoginAt && (
+              <div>
+                <p className="text-sm font-medium">Last Login</p>
+                <p className="text-sm text-muted-foreground">
+                  {format(new Date(vendor.lastLoginAt), "dd MMM yyyy, hh:mm a")}
+                </p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
