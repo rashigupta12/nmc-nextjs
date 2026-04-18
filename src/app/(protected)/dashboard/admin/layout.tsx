@@ -42,13 +42,13 @@ export default function AdminLayout({
     { href: "/dashboard/admin", label: "Dashboard", icon: Home },
     { href: "/dashboard/admin/vendors", label: "Vendors", icon: Building2 },
     { href: "/dashboard/admin/users", label: "Users", icon: Users },
-    { href: "/dashboard/admin/test-catalog", label: "Test Catalog", icon: Package },
-    { href: "/dashboard/admin/samples", label: "Samples", icon: FileText },
-    { href: "/dashboard/admin/shipments", label: "Shipments", icon: Truck },
-    { href: "/dashboard/admin/reports", label: "Reports", icon: BookOpen },
-    { href: "/dashboard/admin/analytics", label: "Analytics", icon: BarChart3 },
-    { href: "/dashboard/admin/helpdesk", label: "Helpdesk", icon: HelpCircle },
-    { href: "/dashboard/admin/settings", label: "Settings", icon: Settings },
+    { href: "/dashboard/admin/test-catalog", label: "Test Catalog ⚠️", icon: Package },
+    { href: "/dashboard/admin/samples", label: "Samples ⚠️", icon: FileText },
+    { href: "/dashboard/admin/shipments", label: "Shipments ⚠️", icon: Truck },
+    { href: "/dashboard/admin/reports", label: "Reports ⚠️", icon: BookOpen },
+    { href: "/dashboard/admin/analytics", label: "Analytics ⚠️", icon: BarChart3 },
+    { href: "/dashboard/admin/helpdesk", label: "Helpdesk ⚠️", icon: HelpCircle },
+    { href: "/dashboard/admin/settings", label: "Settings ⚠️", icon: Settings },
   ];
 
   const isActive = (href: string) => {
