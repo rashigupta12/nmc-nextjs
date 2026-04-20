@@ -1,6 +1,6 @@
 {
-  "id": "d8d92c45-3ead-463b-93c7-deef3247699b",
-  "prevId": "670f98a0-6202-454b-9737-81c0f4346d96",
+  "id": "aa2701e3-f0c1-440d-8281-0b6af5df725b",
+  "prevId": "d8d92c45-3ead-463b-93c7-deef3247699b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3007,6 +3007,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "login_slug": {
+          "name": "login_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "added_by": {
           "name": "added_by",
           "type": "uuid",
@@ -3171,6 +3177,13 @@
           "nullsNotDistinct": false,
           "columns": [
             "vendor_code"
+          ]
+        },
+        "vendors_login_slug_unique": {
+          "name": "vendors_login_slug_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "login_slug"
           ]
         }
       },
