@@ -98,6 +98,10 @@ export async function createVendor(formData: FormData) {
     // Generate unique vendor code and login URL
     const vendorCode = await generateVendorCode();
     const loginUrl = await generateLoginUrl(vendorData.name);
+    
+    // Extract login slug from URL
+    const loginSlug = loginUrl.split('/vendor/login/')[1];
+    
     const tempPassword = Math.random().toString(36).slice(-8);
     const hashedPassword = await hash(tempPassword, 10);
 
@@ -117,6 +121,7 @@ export async function createVendor(formData: FormData) {
         logo: null,
         remark: vendorData.remark || null,
         loginurl: loginUrl,
+        loginSlug: loginSlug,
         addedBy: userId,           // ✅ Fixed: guaranteed string
         isPasswordReset: true,
         lastLoginAt: null,

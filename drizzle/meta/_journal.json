@@ -15,6 +15,13 @@
       "when": 1776334195784,
       "tag": "0001_fast_mephisto",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776513004963,
+      "tag": "0002_gigantic_ted_forrester",
+      "breakpoints": true
     }
   ]
 }

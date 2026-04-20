@@ -208,6 +208,7 @@ export const VendorsTable = pgTable(
     logo:           text("logo"),                            // URL to logo
     remark:         text("remark"),
     loginurl:       text("loginurl").notNull(),              // Unique login URL for vendor portal
+    loginSlug:      text("login_slug").notNull().unique(),   // URL slug used in /vendor/login/[slug]
     
     addedBy:        uuid("added_by").notNull(),              // References UsersTable.id (ADMIN who created)
 
