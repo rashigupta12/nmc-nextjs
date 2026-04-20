@@ -190,24 +190,6 @@ After thorough analysis of the codebase, data models, access patterns, and migra
 **Final verdict:** ✅ **Maintain the polyglot architecture** – focus on operational excellence and clear boundaries between the two databases.
 
 ---
-
-## Appendix: Migration Effort Snapshot (for reference)
-
-| Task                                                    | Estimated Days                                                  |
-| ------------------------------------------------------- | --------------------------------------------------------------- |
-| PostgreSQL schema design for 15+ MongoDB collections    | 10                                                              |
-| ETL script development (Node.js)                        | 15                                                              |
-| Data validation & reconciliation                        | 10                                                              |
-| Rewrite Mongoose queries to Drizzle (approx. 50+ files) | 20                                                              |
-| Update tests and integration specs                      | 10                                                              |
-| Parallel run & bug fixing                               | 15                                                              |
-| Cut‑over planning & execution                           | 5                                                               |
-| **Total**                                               | **85 person‑days (~4 months for 1 developer, ~2 months for 2)** |
-
-_This estimate excludes unforeseen issues (e.g., data inconsistencies, performance tuning)._
-
 ---
 
 **Document prepared by:** Technical Architecture Team  
-**Reviewed by:** (To be filled)  
-**Approved by:** (To be filled)
