@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getVendorById, updateVendorStatus, deleteVendor } from "@/actions/admin/vendor-actions";
+import { getVendorById, updateVendorStatus, deleteVendor, resetVendorPassword } from "@/actions/admin/vendor-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +35,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { KeyRound, Copy } from "lucide-react";
 import { format } from "date-fns";
 
 export default function VendorDetailsPage() {
@@ -43,6 +45,9 @@ export default function VendorDetailsPage() {
   const vendorId = params.vendorId as string;
   const [vendor, setVendor] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     loadVendor();
@@ -96,6 +101,38 @@ export default function VendorDetailsPage() {
         description: result.error,
       });
     }
+  }
+
+  async function handleResetPassword() {
+    setResetting(true);
+    try {
+      const result = await resetVendorPassword(vendorId);
+      if (result.success) {
+        setNewPassword(result.tempPassword);
+        setShowPasswordDialog(true);
+        toast({
+          title: "Success",
+          description: "Vendor password has been reset",
+        });
+        loadVendor();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.error,
+        });
+      }
+    } finally {
+      setResetting(false);
+    }
+  }
+
+  function copyToClipboard() {
+    navigator.clipboard.writeText(newPassword);
+    toast({
+      title: "Copied",
+      description: "Password copied to clipboard",
+    });
   }
 
   if (loading) {
@@ -168,6 +205,29 @@ export default function VendorDetailsPage() {
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="default">
+                <KeyRound className="h-4 w-4 mr-2" />
+                Reset Password
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Reset Vendor Password?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will generate a new temporary password. Vendor will be forced to set a new password on their next login.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleResetPassword} disabled={resetting}>
+                  {resetting ? "Resetting..." : "Reset Password"}
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -386,9 +446,37 @@ export default function VendorDetailsPage() {
                 </p>
               </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+           </div>
+         </CardContent>
+       </Card>
+
+       {/* Password Dialog */}
+       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+         <DialogContent>
+           <DialogHeader>
+             <DialogTitle>Password Reset Successful</DialogTitle>
+           </DialogHeader>
+           <div className="space-y-4 py-4">
+             <p className="text-sm text-muted-foreground">
+               Vendor temporary password has been generated. This password will only be shown once.
+             </p>
+             <div className="flex items-center gap-2">
+               <div className="p-3 bg-muted rounded-md flex-1 font-mono text-lg">
+                 {newPassword}
+               </div>
+               <Button variant="ghost" size="icon" onClick={copyToClipboard}>
+                 <Copy className="h-4 w-4" />
+               </Button>
+             </div>
+             <p className="text-sm text-muted-foreground">
+               Please send this password to the vendor securely.
+             </p>
+           </div>
+           <DialogFooter>
+             <Button onClick={() => setShowPasswordDialog(false)}>Close</Button>
+           </DialogFooter>
+         </DialogContent>
+       </Dialog>
+     </div>
+   );
+ }

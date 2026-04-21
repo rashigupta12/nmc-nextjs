@@ -33,7 +33,7 @@ export default function VendorLoginForm({ vendorSlug, vendorId, themeColor }: Pr
       if (result?.error) {
         setError('Invalid email or password')
       } else {
-        router.push(`/vendor/dashboard`)
+        router.push(`/dashboard/vendor`)
       }
     } catch (err) {
       setError('An error occurred. Please try again.')

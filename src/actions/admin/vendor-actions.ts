@@ -435,3 +435,41 @@ export async function updateVendor(vendorId: string, formData: FormData) {
     return { error: "Failed to update vendor" };
   }
 }
+
+// Reset vendor password
+export async function resetVendorPassword(vendorId: string) {
+  try {
+    const session = await auth();
+
+    if (
+      !session ||
+      (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")
+    ) {
+      return { error: "Unauthorized" };
+    }
+
+    // Generate temporary password
+    const tempPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await hash(tempPassword, 10);
+
+    await db
+      .update(VendorsTable)
+      .set({
+        password: hashedPassword,
+        isPasswordReset: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(VendorsTable.id, vendorId));
+
+    revalidatePath(`/dashboard/admin/vendors/${vendorId}`);
+
+    return {
+      success: true,
+      tempPassword,
+      message: "Password reset successfully",
+    };
+  } catch (error) {
+    console.error("Error resetting vendor password:", error);
+    return { error: "Failed to reset password" };
+  }
+}

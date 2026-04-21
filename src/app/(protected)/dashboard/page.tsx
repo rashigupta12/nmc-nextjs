@@ -35,6 +35,9 @@ export default function Dashboard() {
       case "SUPER_ADMIN":
           router.push("/dashboard/user");
           break;
+      case "VENDOR":
+          router.push("/dashboard/vendor");
+          break;
       default:
         setIsRedirecting(false);
         break;

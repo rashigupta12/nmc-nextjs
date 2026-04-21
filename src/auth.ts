@@ -9,7 +9,9 @@ import { findUserById } from "./actions/user";
 import { db } from "./db";
 
 export type ExtendedUser = DefaultSession["user"] & {
-  role: Role;
+  role: Role | 'VENDOR';
+  vendorCode?: string;
+  loginSlug?: string;
 };
 
 declare module "next-auth" {
@@ -37,7 +39,13 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     error: "/auth/error",
   },
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, account }) {
+      // Skip user check for vendor logins
+      if (account?.provider === 'vendor') {
+        return true;
+      }
+
+      // Regular user login check
       const existingUser = await findUserById(user.id!);
       if (!existingUser || !existingUser?.emailVerified) {
         return false;
@@ -45,11 +53,23 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
 
       return true;
     },
-    async jwt({ token }) {
+    async jwt({ token, account, user }) {
       if (!token.sub) {
         return token;
       }
 
+      // Handle vendor session
+      if (account?.provider === 'vendor' && user) {
+        // @ts-ignore - user object comes from vendor auth provider
+        token.role = 'VENDOR';
+        // @ts-ignore
+        token.vendorCode = user.vendorCode;
+        // @ts-ignore
+        token.loginSlug = user.loginSlug;
+        return token;
+      }
+
+      // Regular user session
       const existingUser = await findUserById(token.sub);
       if (!existingUser) {
         return token;
@@ -66,6 +86,15 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
 
       if (token.role && session.user) {
         session.user.role = token.role;
+      }
+
+      // Add vendor fields to session
+      // @ts-ignore
+      if (token.role === 'VENDOR') {
+        // @ts-ignore
+        session.user.vendorCode = token.vendorCode;
+        // @ts-ignore
+        session.user.loginSlug = token.loginSlug;
       }
 
       return session;
