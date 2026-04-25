@@ -1,3 +1,9 @@
+
+
+/*eslint-disable @typescript-eslint/no-explicit-any */
+
+/*eslint-disable @typescript-eslint/no-unused-vars */
+
 // src/lib/gene/geneVariantMapper.ts
 
 interface MongoGeneticVariant {
@@ -151,8 +157,8 @@ export async function insertGeneVariantsToMongoDB(geneVariantsData: any[]) {
 
     let GeneticVariant;
     try {
-      const module = await import('../../models/geneticVariant');
-      GeneticVariant = module.GeneticVariant;
+      const modelname = await import('../../models/geneticVariant');
+      GeneticVariant = modelname.GeneticVariant;
     } catch (error) {
       throw new Error('Could not load GeneticVariant model');
     }

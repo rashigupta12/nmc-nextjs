@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable  @typescript-eslint/ban-ts-comment */
 
 import authConfig from "@/auth.config";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth, { DefaultSession } from "next-auth";
 import { JWT } from "next-auth/jwt";
-import { Role } from "./validaton-schema";
 import { findUserById } from "./actions/user";
 import { db } from "./db";
+import { Role } from "./validaton-schema";
 
 export type ExtendedUser = DefaultSession["user"] & {
   role: Role | 'VENDOR';
@@ -60,11 +61,11 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
 
       // Handle vendor session
       if (account?.provider === 'vendor' && user) {
-        // @ts-ignore - user object comes from vendor auth provider
+        // @ts-expect-error - user object comes from vendor auth provider
         token.role = 'VENDOR';
-        // @ts-ignore
+        // @ts-expect-error
         token.vendorCode = user.vendorCode;
-        // @ts-ignore
+        // @ts-expect-error
         token.loginSlug = user.loginSlug;
         return token;
       }
@@ -89,11 +90,11 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       }
 
       // Add vendor fields to session
-      // @ts-ignore
+      // @ts-expect-error
       if (token.role === 'VENDOR') {
-        // @ts-ignore
+        // @ts-expect-error
         session.user.vendorCode = token.vendorCode;
-        // @ts-ignore
+        // @ts-expect-error
         session.user.loginSlug = token.loginSlug;
       }
 

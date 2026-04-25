@@ -1,3 +1,4 @@
+/*eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/admin/VendorList.tsx
 "use client";
 
@@ -72,7 +73,7 @@ export function VendorList() {
         <div className="text-center">
           <p className="text-muted-foreground">No vendors found</p>
           <p className="text-sm text-muted-foreground mt-2">
-            Click "Add New Vendor" to create your first vendor
+            Click &quot; Add New Vendor &quot; to create your first vendor
           </p>
         </div>
       </div>

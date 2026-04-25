@@ -1,8 +1,8 @@
 // app/api/orders/[orderNo]/print/route.ts
-import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { OrdersTable, SamplesTable, PatientsTable, TestCatalogTable } from '@/db/schema';
+import { OrdersTable } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
   request: NextRequest,

@@ -1,8 +1,9 @@
+/*eslint-disable @typescript-eslint/no-explicit-any */
 // app/api/test-catalog/route.ts
-import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { TestCatalogTable } from '@/db/schema';
-import { eq, and, or, ilike, desc } from 'drizzle-orm';
+import { and, eq, ilike, or } from 'drizzle-orm';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,8 +12,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '100');
     const search = searchParams.get('search') || '';
     
-    // Build the query
-    let conditions = [];
+    // Build the conditions array
+    const conditions = [];
     
     if (isActive === 'true') {
       conditions.push(eq(TestCatalogTable.isActive, true));
@@ -28,18 +29,16 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // Execute query with conditions
-    let query = db.select().from(TestCatalogTable);
+    // Build the where clause if conditions exist
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
     
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions) as any);
-    }
-    
-    // Order by test name
-    query = query.orderBy(TestCatalogTable.testName);
-    
-    // Apply limit
-    query = query.limit(limit);
+    // Execute query with all methods chained
+    const query = db
+      .select()
+      .from(TestCatalogTable)
+      .where(whereClause)
+      .orderBy(TestCatalogTable.testName)
+      .limit(limit);
     
     const tests = await query;
     

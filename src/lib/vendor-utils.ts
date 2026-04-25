@@ -1,7 +1,7 @@
 // src/lib/vendor-utils.ts
 import { db } from "@/db";
 import { VendorsTable } from "@/db/schema";
-import { count, eq } from "drizzle-orm";
+import { count } from "drizzle-orm";
 
 export async function generateVendorCode(): Promise<string> {
   const vendorCount = await db.select({ count: count() }).from(VendorsTable);

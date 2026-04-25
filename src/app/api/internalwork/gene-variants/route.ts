@@ -153,8 +153,8 @@ export async function DELETE(request: NextRequest) {
 
     let GeneticVariant;
     try {
-      const module = await import('@/models/geneticVariant');
-      GeneticVariant = module.GeneticVariant;
+      const modelname = await import('@/models/geneticVariant');
+      GeneticVariant = modelname.GeneticVariant;
     } catch (error) {
       return NextResponse.json(
         { success: false, error: 'Database model not available' },

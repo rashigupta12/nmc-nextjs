@@ -1,3 +1,4 @@
+/*eslint-disable @typescript-eslint/no-unused-vars */
 // src/components/admin/VendorForm.tsx
 "use client";
 
@@ -121,7 +122,7 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
           <CardHeader>
             <CardTitle>Basic Information</CardTitle>
             <CardDescription>
-              Enter the vendor's basic details
+              Enter the vendor &apos;s basic details
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -198,7 +199,7 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
           <CardHeader>
             <CardTitle>Address Information</CardTitle>
             <CardDescription>
-              Vendor's registered office address
+              Vendor &apos;s registered office address
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

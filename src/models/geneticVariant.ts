@@ -1,3 +1,4 @@
+/*eslint-disable @typescript-eslint/no-unused-vars  */
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IGeneticVariant extends Document {

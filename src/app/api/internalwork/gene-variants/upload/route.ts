@@ -1,4 +1,4 @@
-/*eslint-disable @typescript-eslint/no-unused-vars */
+/*eslint-disable @typescript-eslint/no-explicit-any */
 import { insertGeneVariantsToMongoDB } from '@/lib/gene/geneVariantMapper';
 import { connectToMongoDB } from '@/lib/mongodb';
 import { NextRequest, NextResponse } from 'next/server';

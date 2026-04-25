@@ -1,3 +1,4 @@
+/*eslint-disable @typescript-eslint/ban-ts-comment*/
 import mongoose from 'mongoose';
 
 const MONGODB_URI = process.env.MONGODB_URL!;
