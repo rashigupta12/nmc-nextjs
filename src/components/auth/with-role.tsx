@@ -10,9 +10,11 @@ import { useRouter } from "next/navigation";
 import { ReactNode } from "react";
 import { ClipLoader } from "react-spinners";
 
+type UserRole = Role | 'VENDOR';
+
 interface Props {
   children: ReactNode;
-  allowedRoles: Role[];
+  allowedRoles: UserRole[];
 }
 
 export function withRole<P>({ children, allowedRoles }: Props) {
@@ -24,7 +26,8 @@ export function withRole<P>({ children, allowedRoles }: Props) {
       return <ClipLoader />;
     }
 
-    if (!session || !allowedRoles.includes(session.user.role)) {
+    const userRole = session?.user?.role as UserRole | undefined;
+    if (!session || !userRole || !allowedRoles.includes(userRole)) {
       router.push("/auth/login");
       return null;
     }

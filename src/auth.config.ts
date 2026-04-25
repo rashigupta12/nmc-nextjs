@@ -66,7 +66,8 @@ export default {
           type: 'VENDOR',
           vendorCode: vendor.vendorCode,
           loginSlug: vendor.loginSlug,
-          isPasswordReset: vendor.isPasswordReset
+          isPasswordReset: vendor.isPasswordReset,
+          password: vendor.password,
         };
       }
     })

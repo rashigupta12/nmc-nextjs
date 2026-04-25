@@ -46,3 +46,26 @@ export const RegisterUserSchema = z.object({
     .min(10, { message: "Number must be at least 10 characters." }),
   role: RoleEnum.optional(),
 });
+
+export const VendorResetPasswordSchema = z
+  .object({
+    currentPassword: z
+      .string({ required_error: "Current password is required!" })
+      .min(1, { message: "Current password is required!" }),
+    newPassword: passwordSchema,
+    confirmPassword: z
+      .string({ required_error: "Confirm password is required!" })
+      .min(1, { message: "Confirm password is required!" }),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match!",
+    path: ["confirmPassword"],
+  });
+
+export const VendorLoginSchema = z.object({
+  slug: z.string().min(1, { message: "Slug is required!" }),
+  email: emailSchema,
+  password: z
+    .string({ required_error: "Password is required!" })
+    .min(1, { message: "Password is required!" }),
+});
