@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { hash } from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
+import { sendEmail } from "@/lib/mailer";
 
 // Helper functions
 async function generateVendorCode(): Promise<string> {
@@ -24,6 +25,121 @@ async function generateLoginUrl(companyName: string): Promise<string> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   return `${baseUrl}/vendor/login/${slug}`;
 }
+
+// Send welcome email to new vendor
+async function sendVendorWelcomeEmail(
+  email: string,
+  name: string,
+  loginUrl: string,
+  tempPassword: string,
+  vendorCode: string
+) {
+  const loginPageUrl = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL}/vendor/login`;
+  
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #333;">Welcome ${name}!</h2>
+      <p>Your vendor account has been created successfully in the system.</p>
+      
+      <div style="background-color: #f4f4f4; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <h3 style="margin-top: 0; color: #555;">Account Details:</h3>
+        <p><strong>Vendor Code:</strong> ${vendorCode}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Temporary Password:</strong> <code style="background-color: #ddd; padding: 2px 5px; border-radius: 3px;">${tempPassword}</code></p>
+      </div>
+      
+      <p>You can log in using either of these methods:</p>
+      
+      <div style="margin: 20px 0;">
+        <p><strong>Option 1 - Direct Login URL (Unique to your vendor):</strong></p>
+        <p><a href="${loginUrl}" style="color: #0066cc; word-break: break-all;">${loginUrl}</a></p>
+        
+        <p><strong>Option 2 - General Login Page:</strong></p>
+        <p><a href="${loginPageUrl}" style="color: #0066cc;">${loginPageUrl}</a></p>
+        <p>Use your email and the temporary password above.</p>
+      </div>
+      
+      <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 20px 0;">
+        <p style="margin: 0; color: #856404;">
+          <strong>⚠️ Important:</strong> For security reasons, you will be required to reset your password on first login.
+        </p>
+      </div>
+      
+      <p>If you have any questions or need assistance, please contact the administrator.</p>
+      
+      <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;" />
+      
+      <p style="color: #666; font-size: 12px;">
+        This is an automated message, please do not reply to this email.
+      </p>
+    </div>
+  `;
+
+  await sendEmail(
+    "Vendor Management System",
+    email,
+    "Welcome to Vendor Portal - Your Account Credentials",
+    emailHtml
+  );
+}
+
+// Send password reset email to vendor
+async function sendVendorPasswordResetEmail(
+  email: string,
+  name: string,
+  resetToken: string,
+  vendorCode: string
+) {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL;
+  const resetPasswordUrl = `${baseUrl}/vendor/reset-password`;
+  const url = `${resetPasswordUrl}?token=${resetToken}&email=${email}`;
+  
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #333;">Password Reset Request</h2>
+      <p>Hello ${name},</p>
+      <p>We received a request to reset the password for your vendor account.</p>
+      
+      <div style="background-color: #f4f4f4; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p><strong>Vendor Code:</strong> ${vendorCode}</p>
+        <p><strong>Email:</strong> ${email}</p>
+      </div>
+      
+      <p>Click the button below to reset your password:</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${url}" style="background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+          Reset Password
+        </a>
+      </div>
+      
+      <p>Or copy and paste this link into your browser:</p>
+      <p style="background-color: #f4f4f4; padding: 10px; word-break: break-all; font-size: 12px;">${url}</p>
+      
+      <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 20px 0;">
+        <p style="margin: 0; color: #856404;">
+          <strong>⚠️ Note:</strong> This password reset link will expire in 1 hour.
+        </p>
+      </div>
+      
+      <p>If you didn't request this password reset, please ignore this email or contact support immediately.</p>
+      
+      <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;" />
+      
+      <p style="color: #666; font-size: 12px;">
+        This is an automated message, please do not reply to this email.
+      </p>
+    </div>
+  `;
+
+  await sendEmail(
+    "Vendor Management System",
+    email,
+    "Reset Your Vendor Account Password",
+    emailHtml
+  );
+}
+
 
 export async function createVendor(formData: FormData) {
   try {
@@ -105,7 +221,7 @@ export async function createVendor(formData: FormData) {
     const tempPassword = Math.random().toString(36).slice(-8);
     const hashedPassword = await hash(tempPassword, 10);
 
-    // Create vendor - Match all required fields from schema
+    // Create vendor
     const [newVendor] = await db
       .insert(VendorsTable)
       .values({
@@ -122,7 +238,7 @@ export async function createVendor(formData: FormData) {
         remark: vendorData.remark || null,
         loginurl: loginUrl,
         loginSlug: loginSlug,
-        addedBy: userId,           // ✅ Fixed: guaranteed string
+        addedBy: userId,
         isPasswordReset: true,
         lastLoginAt: null,
         address: vendorData.address,
@@ -139,14 +255,11 @@ export async function createVendor(formData: FormData) {
       .returning();
 
     // Create default vendor settings
-    // Only pass fields that differ from DB defaults, or fields without defaults.
-    // Do NOT pass null for notNull()+default() columns — omit them instead.
     await db.insert(VendorSettingsTable).values({
-      vendorId: newVendor.id,    // ✅ Fixed: comes from returning(), typed as string
+      vendorId: newVendor.id,
       deliverable: "REPORT",
       hidePersonalInfo: false,
       passwordProtectedReport: false,
-      // passwordRule omitted — DB default "NAME4_DOB" will be used ✅
       coverPage: false,
       skinCoverBackPage: false,
       blankPage: false,
@@ -170,7 +283,6 @@ export async function createVendor(formData: FormData) {
       sleepBackCoverPageLogo: false,
       sleepCoverPageLogo: false,
       notifyTarget: "BOTH",
-      // Optional nullable fields — safe to pass null
       s3BucketName: null,
       rawDataEmail: null,
       logoImg: null,
@@ -226,13 +338,27 @@ export async function createVendor(formData: FormData) {
       notificationEvents: null,
     });
 
+    // Send welcome email with credentials
+    try {
+      await sendVendorWelcomeEmail(
+        vendorData.email,
+        vendorData.name,
+        loginUrl,
+        tempPassword,
+        vendorCode
+      );
+    } catch (emailError) {
+      console.error("Failed to send welcome email:", emailError);
+      // Don't fail the vendor creation if email fails
+    }
+
     revalidatePath("/dashboard/admin/vendors");
 
     return {
       success: true,
       vendor: newVendor,
-      tempPassword, // In production, send via email only
-      message: "Vendor created successfully",
+      tempPassword,
+      message: "Vendor created successfully. Welcome email sent with credentials.",
     };
   } catch (error) {
     console.error("Error creating vendor:", error);
@@ -436,7 +562,7 @@ export async function updateVendor(vendorId: string, formData: FormData) {
   }
 }
 
-// Reset vendor password
+// Reset vendor password with email notification
 export async function resetVendorPassword(vendorId: string) {
   try {
     const session = await auth();
@@ -446,6 +572,15 @@ export async function resetVendorPassword(vendorId: string) {
       (session.user.role !== "ADMIN" && session.user.role !== "SUPER_ADMIN")
     ) {
       return { error: "Unauthorized" };
+    }
+
+    // Get vendor details first
+    const vendor = await db.query.VendorsTable.findFirst({
+      where: eq(VendorsTable.id, vendorId),
+    });
+
+    if (!vendor) {
+      return { error: "Vendor not found" };
     }
 
     // Generate temporary password
@@ -461,15 +596,139 @@ export async function resetVendorPassword(vendorId: string) {
       })
       .where(eq(VendorsTable.id, vendorId));
 
+    // Send password reset email with temporary password
+    const loginPageUrl = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL}/vendor/login`;
+    const loginUrl = vendor.loginurl || loginPageUrl;
+    
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">Password Reset - ${vendor.name}</h2>
+        <p>Your vendor account password has been reset by an administrator.</p>
+        
+        <div style="background-color: #f4f4f4; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #555;">New Account Details:</h3>
+          <p><strong>Vendor Code:</strong> ${vendor.vendorCode}</p>
+          <p><strong>Email:</strong> ${vendor.email}</p>
+          <p><strong>Temporary Password:</strong> <code style="background-color: #ddd; padding: 2px 5px; border-radius: 3px;">${tempPassword}</code></p>
+        </div>
+        
+        <p>You can log in using either of these methods:</p>
+        
+        <div style="margin: 20px 0;">
+          <p><strong>Option 1 - Direct Login URL:</strong></p>
+          <p><a href="${loginUrl}" style="color: #0066cc; word-break: break-all;">${loginUrl}</a></p>
+          
+          <p><strong>Option 2 - General Login Page:</strong></p>
+          <p><a href="${loginPageUrl}" style="color: #0066cc;">${loginPageUrl}</a></p>
+        </div>
+        
+        <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 20px 0;">
+          <p style="margin: 0; color: #856404;">
+            <strong>⚠️ Important:</strong> For security reasons, you will be required to reset your password on next login.
+          </p>
+        </div>
+        
+        <p>If you didn't request this password reset, please contact the administrator immediately.</p>
+        
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;" />
+        
+        <p style="color: #666; font-size: 12px;">
+          This is an automated message, please do not reply to this email.
+        </p>
+      </div>
+    `;
+
+    await sendEmail(
+      "Vendor Management System",
+      vendor.email,
+      "Your Vendor Password Has Been Reset",
+      emailHtml
+    );
+
     revalidatePath(`/dashboard/admin/vendors/${vendorId}`);
 
     return {
       success: true,
       tempPassword,
-      message: "Password reset successfully",
+      message: "Password reset successfully. Email sent with new credentials.",
     };
   } catch (error) {
     console.error("Error resetting vendor password:", error);
     return { error: "Failed to reset password" };
+  }
+}
+
+// Initiate password reset from vendor login page (forgot password)
+export async function initiateVendorPasswordReset(email: string) {
+  try {
+    // Find vendor by email
+    const vendor = await db.query.VendorsTable.findFirst({
+      where: eq(VendorsTable.email, email),
+    });
+
+    if (!vendor) {
+      return { error: "No vendor found with this email address" };
+    }
+
+    // Generate reset token
+    const resetToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1); // Token expires in 1 hour
+
+   
+
+    // Send password reset email
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL;
+    const resetUrl = `${baseUrl}/vendor/reset-password?token=${resetToken}&email=${email}`;
+    
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">Password Reset Request</h2>
+        <p>Hello ${vendor.name},</p>
+        <p>We received a request to reset the password for your vendor account.</p>
+        
+        <div style="background-color: #f4f4f4; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <p><strong>Vendor Code:</strong> ${vendor.vendorCode}</p>
+          <p><strong>Email:</strong> ${vendor.email}</p>
+        </div>
+        
+        <p>Click the button below to reset your password:</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}" style="background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
+            Reset Password
+          </a>
+        </div>
+        
+        <p>Or copy and paste this link into your browser:</p>
+        <p style="background-color: #f4f4f4; padding: 10px; word-break: break-all; font-size: 12px;">${resetUrl}</p>
+        
+        <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 20px 0;">
+          <p style="margin: 0; color: #856404;">
+            <strong>⚠️ Note:</strong> This password reset link will expire in 1 hour.
+          </p>
+        </div>
+        
+        <p>If you didn't request this password reset, please ignore this email or contact support immediately.</p>
+        
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;" />
+        
+        <p style="color: #666; font-size: 12px;">
+          This is an automated message, please do not reply to this email.
+        </p>
+      </div>
+    `;
+
+    await sendEmail(
+      "Vendor Management System",
+      vendor.email,
+      "Reset Your Vendor Account Password",
+      emailHtml
+    );
+
+    return { success: "Password reset email sent successfully" };
+  } catch (error) {
+    console.error("Error initiating password reset:", error);
+    return { error: "Failed to send reset email" };
   }
 }

@@ -1,13 +1,17 @@
 CREATE TYPE "public"."deliverable" AS ENUM('REPORT', 'RAW_DATA', 'BOTH');--> statement-breakpoint
+CREATE TYPE "public"."gender" AS ENUM('M', 'F', 'Other');--> statement-breakpoint
+CREATE TYPE "public"."lifestyle" AS ENUM('No Activity', 'Light Activity', 'Moderate Activity', 'Very Active', 'Extremely Active');--> statement-breakpoint
 CREATE TYPE "public"."notify_target" AS ENUM('SUBJECT', 'BUSINESS_PARTNER', 'BOTH');--> statement-breakpoint
 CREATE TYPE "public"."payment_status" AS ENUM('PENDING', 'PAID', 'FAILED', 'REFUNDED');--> statement-breakpoint
 CREATE TYPE "public"."sample_status" AS ENUM('CREATED', 'SHIPPED', 'RECEIVED', 'QC_PASSED', 'QC_FAILED', 'PROCESSING', 'READY', 'REPORT_GENERATED', 'RELEASED', 'RESAMPLING');--> statement-breakpoint
 CREATE TYPE "public"."sample_type" AS ENUM('SALIVA', 'BLOOD', 'TISSUE');--> statement-breakpoint
 CREATE TYPE "public"."shipment_status" AS ENUM('CREATED', 'COURIERED', 'IN_TRANSIT', 'RECEIVED', 'PARTIALLY_RECEIVED');--> statement-breakpoint
+CREATE TYPE "public"."smoking" AS ENUM('Yes', 'No', 'Occasional');--> statement-breakpoint
 CREATE TYPE "public"."ticket_priority" AS ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL');--> statement-breakpoint
 CREATE TYPE "public"."ticket_status" AS ENUM('OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED');--> statement-breakpoint
 CREATE TYPE "public"."user_role" AS ENUM('SUPER_ADMIN', 'ADMIN');--> statement-breakpoint
 CREATE TYPE "public"."vendor_status" AS ENUM('ACTIVE', 'SUSPENDED', 'INACTIVE');--> statement-breakpoint
+CREATE TYPE "public"."yes_no" AS ENUM('yes', 'no');--> statement-breakpoint
 CREATE TABLE "audit_log" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"actor_id" uuid NOT NULL,
@@ -90,24 +94,58 @@ CREATE TABLE "patients" (
 	"patient_id" text NOT NULL,
 	"vendor_id" uuid NOT NULL,
 	"created_by" uuid NOT NULL,
-	"first_name" text NOT NULL,
-	"middle_name" text,
-	"last_name" text NOT NULL,
-	"gender" text NOT NULL,
-	"dob" text,
-	"age" integer,
-	"height" numeric(5, 2),
-	"weight" numeric(5, 2),
+	"doctor_f_name" text NOT NULL,
+	"doctor_l_name" text,
+	"hospital_name" text NOT NULL,
+	"clinic" text NOT NULL,
+	"doc_mobile_no" text,
+	"doc_email" text,
+	"patient_f_name" text NOT NULL,
+	"patient_m_name" text,
+	"patient_l_name" text NOT NULL,
+	"gender" "gender" NOT NULL,
+	"dob" text NOT NULL,
+	"age" text NOT NULL,
+	"height" text NOT NULL,
+	"weight" text NOT NULL,
+	"address" jsonb NOT NULL,
+	"phone_no" text,
+	"mobile_no" text,
+	"email" text NOT NULL,
 	"nationality" text,
-	"ethnicity" text,
-	"phone" text,
-	"email" text,
-	"address" text,
-	"city" text,
-	"state" text,
-	"country" text,
-	"zip_code" text,
-	"medical_history" jsonb,
+	"ethinicity" text NOT NULL,
+	"lifestyle" "lifestyle" NOT NULL,
+	"patient_history" text,
+	"medication" text,
+	"family_history" text,
+	"family_history_details" jsonb,
+	"is_patient_consent" integer NOT NULL,
+	"pdf_file_name" text,
+	"is_pdf_uploaded" integer DEFAULT 0,
+	"mr_no" text,
+	"trf" text,
+	"tag" text,
+	"smoking" "smoking" NOT NULL,
+	"alcoholic" integer DEFAULT 0,
+	"medical_history" text,
+	"medication_2" text,
+	"family_history_1" text,
+	"relationship" text,
+	"chest_pain" "yes_no" NOT NULL,
+	"cardiac_enzyme" "yes_no" NOT NULL,
+	"cholestrol" text,
+	"hdl" text,
+	"cholestrol_hdl_ratio" text,
+	"ldl" text,
+	"hdl_ldl_ratio" text,
+	"triglycerides" text,
+	"hb_value" text,
+	"bp_systolic" text,
+	"bp_diastolic" text,
+	"medications" text,
+	"echocardiography" text,
+	"nct" text,
+	"metabolome_ratio" text,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
@@ -218,7 +256,7 @@ CREATE TABLE "users" (
 	"name" text NOT NULL,
 	"email" text NOT NULL,
 	"password" text NOT NULL,
-	"phone" text,
+	"mobile" text,
 	"is_active" boolean DEFAULT true NOT NULL,
 	"is_password_reset" boolean DEFAULT false NOT NULL,
 	"email_verified" timestamp,
@@ -355,6 +393,7 @@ CREATE TABLE "vendors" (
 	"logo" text,
 	"remark" text,
 	"loginurl" text NOT NULL,
+	"login_slug" text NOT NULL,
 	"added_by" uuid NOT NULL,
 	"is_password_reset" boolean DEFAULT false NOT NULL,
 	"last_login_at" timestamp,
@@ -370,7 +409,8 @@ CREATE TABLE "vendors" (
 	"deleted_at" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "vendors_vendor_code_unique" UNIQUE("vendor_code")
+	CONSTRAINT "vendors_vendor_code_unique" UNIQUE("vendor_code"),
+	CONSTRAINT "vendors_login_slug_unique" UNIQUE("login_slug")
 );
 --> statement-breakpoint
 CREATE INDEX "audit_log_actor_idx" ON "audit_log" USING btree ("actor_id");--> statement-breakpoint
@@ -390,11 +430,20 @@ CREATE UNIQUE INDEX "orders_order_no_key" ON "orders" USING btree ("order_no");-
 CREATE INDEX "orders_vendor_idx" ON "orders" USING btree ("vendor_id");--> statement-breakpoint
 CREATE INDEX "orders_patient_idx" ON "orders" USING btree ("patient_id");--> statement-breakpoint
 CREATE INDEX "orders_date_idx" ON "orders" USING btree ("order_date");--> statement-breakpoint
+CREATE INDEX "orders_payment_status_idx" ON "orders" USING btree ("payment_status");--> statement-breakpoint
 CREATE UNIQUE INDEX "prt_email_token_key" ON "password_reset_tokens" USING btree ("email","token");--> statement-breakpoint
 CREATE UNIQUE INDEX "prt_token_key" ON "password_reset_tokens" USING btree ("token");--> statement-breakpoint
-CREATE UNIQUE INDEX "patients_vendor_patient_key" ON "patients" USING btree ("vendor_id","patient_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "patients_patient_id_key" ON "patients" USING btree ("patient_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "patients_email_key" ON "patients" USING btree ("email");--> statement-breakpoint
 CREATE INDEX "patients_vendor_idx" ON "patients" USING btree ("vendor_id");--> statement-breakpoint
-CREATE INDEX "patients_name_idx" ON "patients" USING btree ("first_name","last_name");--> statement-breakpoint
+CREATE INDEX "patients_patient_name_idx" ON "patients" USING btree ("patient_f_name","patient_l_name");--> statement-breakpoint
+CREATE INDEX "patients_gender_idx" ON "patients" USING btree ("gender");--> statement-breakpoint
+CREATE INDEX "patients_dob_idx" ON "patients" USING btree ("dob");--> statement-breakpoint
+CREATE INDEX "patients_mrno_idx" ON "patients" USING btree ("mr_no");--> statement-breakpoint
+CREATE INDEX "patients_created_at_idx" ON "patients" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "patients_smoking_idx" ON "patients" USING btree ("smoking");--> statement-breakpoint
+CREATE INDEX "patients_chest_pain_idx" ON "patients" USING btree ("chest_pain");--> statement-breakpoint
+CREATE INDEX "patients_cardiac_enzyme_idx" ON "patients" USING btree ("cardiac_enzyme");--> statement-breakpoint
 CREATE UNIQUE INDEX "pricelist_test_vendor_key" ON "pricelist" USING btree ("test_catalog_id","vendor_id");--> statement-breakpoint
 CREATE INDEX "pricelist_vendor_idx" ON "pricelist" USING btree ("vendor_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "samples_sample_id_key" ON "samples" USING btree ("sample_id");--> statement-breakpoint
@@ -419,6 +468,7 @@ CREATE INDEX "ticket_replies_ticket_idx" ON "ticket_replies" USING btree ("ticke
 CREATE INDEX "ticket_replies_author_idx" ON "ticket_replies" USING btree ("author_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "users_email_key" ON "users" USING btree ("email");--> statement-breakpoint
 CREATE INDEX "users_role_idx" ON "users" USING btree ("role");--> statement-breakpoint
+CREATE INDEX "users_active_idx" ON "users" USING btree ("is_active");--> statement-breakpoint
 CREATE UNIQUE INDEX "vendor_ethnicity_unique" ON "vendor_ethnicity_master" USING btree ("vendor_id","ethnicity");--> statement-breakpoint
 CREATE INDEX "vendor_ethnicity_vendor_idx" ON "vendor_ethnicity_master" USING btree ("vendor_id");--> statement-breakpoint
 CREATE INDEX "vendor_ethnicity_name_idx" ON "vendor_ethnicity_master" USING btree ("ethnicity");--> statement-breakpoint
@@ -431,4 +481,5 @@ CREATE INDEX "vendor_settings_vendor_idx" ON "vendor_settings" USING btree ("ven
 CREATE INDEX "vendors_status_idx" ON "vendors" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "vendors_email_idx" ON "vendors" USING btree ("email");--> statement-breakpoint
 CREATE INDEX "vendors_name_idx" ON "vendors" USING btree ("name");--> statement-breakpoint
-CREATE INDEX "vendors_code_idx" ON "vendors" USING btree ("vendor_code");
+CREATE INDEX "vendors_code_idx" ON "vendors" USING btree ("vendor_code");--> statement-breakpoint
+CREATE INDEX "vendors_login_slug_idx" ON "vendors" USING btree ("login_slug");

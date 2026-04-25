@@ -1,5 +1,5 @@
 {
-  "id": "670f98a0-6202-454b-9737-81c0f4346d96",
+  "id": "099917a1-852b-45d5-b5d4-63e2ade1c296",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -687,6 +687,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "orders_payment_status_idx": {
+          "name": "orders_payment_status_idx",
+          "columns": [
+            {
+              "expression": "payment_status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -800,27 +815,64 @@
           "primaryKey": false,
           "notNull": true
         },
-        "first_name": {
-          "name": "first_name",
+        "doctor_f_name": {
+          "name": "doctor_f_name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "middle_name": {
-          "name": "middle_name",
+        "doctor_l_name": {
+          "name": "doctor_l_name",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "last_name": {
-          "name": "last_name",
+        "hospital_name": {
+          "name": "hospital_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "clinic": {
+          "name": "clinic",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "doc_mobile_no": {
+          "name": "doc_mobile_no",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "doc_email": {
+          "name": "doc_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "patient_f_name": {
+          "name": "patient_f_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "patient_m_name": {
+          "name": "patient_m_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "patient_l_name": {
+          "name": "patient_l_name",
           "type": "text",
           "primaryKey": false,
           "notNull": true
         },
         "gender": {
           "name": "gender",
-          "type": "text",
+          "type": "gender",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -828,40 +880,40 @@
           "name": "dob",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "age": {
           "name": "age",
-          "type": "integer",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "height": {
           "name": "height",
-          "type": "numeric(5, 2)",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "weight": {
           "name": "weight",
-          "type": "numeric(5, 2)",
+          "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "nationality": {
-          "name": "nationality",
+        "address": {
+          "name": "address",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone_no": {
+          "name": "phone_no",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "ethnicity": {
-          "name": "ethnicity",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "phone": {
-          "name": "phone",
+        "mobile_no": {
+          "name": "mobile_no",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -870,41 +922,215 @@
           "name": "email",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "address": {
-          "name": "address",
+        "nationality": {
+          "name": "nationality",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "city": {
-          "name": "city",
+        "ethinicity": {
+          "name": "ethinicity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lifestyle": {
+          "name": "lifestyle",
+          "type": "lifestyle",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "patient_history": {
+          "name": "patient_history",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "state": {
-          "name": "state",
+        "medication": {
+          "name": "medication",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "country": {
-          "name": "country",
+        "family_history": {
+          "name": "family_history",
           "type": "text",
           "primaryKey": false,
           "notNull": false
         },
-        "zip_code": {
-          "name": "zip_code",
+        "family_history_details": {
+          "name": "family_history_details",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_patient_consent": {
+          "name": "is_patient_consent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pdf_file_name": {
+          "name": "pdf_file_name",
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "is_pdf_uploaded": {
+          "name": "is_pdf_uploaded",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "mr_no": {
+          "name": "mr_no",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "trf": {
+          "name": "trf",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tag": {
+          "name": "tag",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "smoking": {
+          "name": "smoking",
+          "type": "smoking",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "alcoholic": {
+          "name": "alcoholic",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
         },
         "medical_history": {
           "name": "medical_history",
-          "type": "jsonb",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "medication_2": {
+          "name": "medication_2",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "family_history_1": {
+          "name": "family_history_1",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "relationship": {
+          "name": "relationship",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "chest_pain": {
+          "name": "chest_pain",
+          "type": "yes_no",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cardiac_enzyme": {
+          "name": "cardiac_enzyme",
+          "type": "yes_no",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cholestrol": {
+          "name": "cholestrol",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hdl": {
+          "name": "hdl",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cholestrol_hdl_ratio": {
+          "name": "cholestrol_hdl_ratio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ldl": {
+          "name": "ldl",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hdl_ldl_ratio": {
+          "name": "hdl_ldl_ratio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "triglycerides": {
+          "name": "triglycerides",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hb_value": {
+          "name": "hb_value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bp_systolic": {
+          "name": "bp_systolic",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bp_diastolic": {
+          "name": "bp_diastolic",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "medications": {
+          "name": "medications",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "echocardiography": {
+          "name": "echocardiography",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nct": {
+          "name": "nct",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metabolome_ratio": {
+          "name": "metabolome_ratio",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -931,17 +1157,26 @@
         }
       },
       "indexes": {
-        "patients_vendor_patient_key": {
-          "name": "patients_vendor_patient_key",
+        "patients_patient_id_key": {
+          "name": "patients_patient_id_key",
           "columns": [
             {
-              "expression": "vendor_id",
+              "expression": "patient_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
-            },
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "patients_email_key": {
+          "name": "patients_email_key",
+          "columns": [
             {
-              "expression": "patient_id",
+              "expression": "email",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -967,17 +1202,122 @@
           "method": "btree",
           "with": {}
         },
-        "patients_name_idx": {
-          "name": "patients_name_idx",
+        "patients_patient_name_idx": {
+          "name": "patients_patient_name_idx",
           "columns": [
             {
-              "expression": "first_name",
+              "expression": "patient_f_name",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "last_name",
+              "expression": "patient_l_name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "patients_gender_idx": {
+          "name": "patients_gender_idx",
+          "columns": [
+            {
+              "expression": "gender",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "patients_dob_idx": {
+          "name": "patients_dob_idx",
+          "columns": [
+            {
+              "expression": "dob",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "patients_mrno_idx": {
+          "name": "patients_mrno_idx",
+          "columns": [
+            {
+              "expression": "mr_no",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "patients_created_at_idx": {
+          "name": "patients_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "patients_smoking_idx": {
+          "name": "patients_smoking_idx",
+          "columns": [
+            {
+              "expression": "smoking",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "patients_chest_pain_idx": {
+          "name": "patients_chest_pain_idx",
+          "columns": [
+            {
+              "expression": "chest_pain",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "patients_cardiac_enzyme_idx": {
+          "name": "patients_cardiac_enzyme_idx",
+          "columns": [
+            {
+              "expression": "cardiac_enzyme",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1973,8 +2313,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "phone": {
-          "name": "phone",
+        "mobile": {
+          "name": "mobile",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -2041,6 +2381,21 @@
           "columns": [
             {
               "expression": "role",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "users_active_idx": {
+          "name": "users_active_idx",
+          "columns": [
+            {
+              "expression": "is_active",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3007,6 +3362,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "login_slug": {
+          "name": "login_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "added_by": {
           "name": "added_by",
           "type": "uuid",
@@ -3161,6 +3522,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "vendors_login_slug_idx": {
+          "name": "vendors_login_slug_idx",
+          "columns": [
+            {
+              "expression": "login_slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -3171,6 +3547,13 @@
           "nullsNotDistinct": false,
           "columns": [
             "vendor_code"
+          ]
+        },
+        "vendors_login_slug_unique": {
+          "name": "vendors_login_slug_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "login_slug"
           ]
         }
       },
@@ -3187,6 +3570,26 @@
         "REPORT",
         "RAW_DATA",
         "BOTH"
+      ]
+    },
+    "public.gender": {
+      "name": "gender",
+      "schema": "public",
+      "values": [
+        "M",
+        "F",
+        "Other"
+      ]
+    },
+    "public.lifestyle": {
+      "name": "lifestyle",
+      "schema": "public",
+      "values": [
+        "No Activity",
+        "Light Activity",
+        "Moderate Activity",
+        "Very Active",
+        "Extremely Active"
       ]
     },
     "public.notify_target": {
@@ -3244,6 +3647,15 @@
         "PARTIALLY_RECEIVED"
       ]
     },
+    "public.smoking": {
+      "name": "smoking",
+      "schema": "public",
+      "values": [
+        "Yes",
+        "No",
+        "Occasional"
+      ]
+    },
     "public.ticket_priority": {
       "name": "ticket_priority",
       "schema": "public",
@@ -3279,6 +3691,14 @@
         "ACTIVE",
         "SUSPENDED",
         "INACTIVE"
+      ]
+    },
+    "public.yes_no": {
+      "name": "yes_no",
+      "schema": "public",
+      "values": [
+        "yes",
+        "no"
       ]
     }
   },
