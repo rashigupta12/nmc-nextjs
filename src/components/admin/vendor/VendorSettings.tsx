@@ -1,11 +1,16 @@
+/*eslint-disable @typescript-eslint/no-unused-vars */
+/*eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/admin/VendorSettings.tsx
+
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { updateVendorSettings } from "@/actions/admin/vendor-settings-actions";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -17,7 +22,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -25,14 +29,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Settings, FileText, Palette, Bell, Database, Shield, Layout } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Bell, FileText, Layout, Loader2, Settings } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 const settingsSchema = z.object({
   // Deliverables

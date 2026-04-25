@@ -1,8 +1,8 @@
 // app/patients/search/route.ts
-import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { PatientsTable } from '@/db/schema';
-import { ilike, or, eq } from 'drizzle-orm';
+import { ilike, or } from 'drizzle-orm';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
