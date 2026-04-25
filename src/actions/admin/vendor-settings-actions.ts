@@ -1,3 +1,4 @@
+/*eslint-disable @typescript-eslint/no-explicit-any */
 // src/actions/admin/vendor-settings-actions.ts
 "use server";
 

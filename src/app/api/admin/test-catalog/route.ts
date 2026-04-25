@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/*eslint-disable @typescript-eslint/no-unused-vars */
 export const runtime = "nodejs";
 
 import { db } from "@/db";
@@ -195,8 +196,8 @@ async function handleBulkUpload(req: NextRequest) {
         const testName = row.testName || row.TestName || row["testName"];
         const alias = row.alias || row.Alias || row["alias"];
         const tatDays = row.tatDays || row.TatDays || row["tatDays"] || row["TAT Days"];
-        let price = row.price || row.Price || row["price"];
-        let isActive = row.isActive || row.IsActive || row["isActive"];
+        const price = row.price || row.Price || row["price"];
+        const isActive = row.isActive || row.IsActive || row["isActive"];
         
         // Validation
         if (!testCode || !testName || !tatDays) {

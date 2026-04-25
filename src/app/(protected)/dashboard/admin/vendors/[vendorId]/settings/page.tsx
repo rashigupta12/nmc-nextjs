@@ -1,43 +1,44 @@
+/*eslint-disable @typescript-eslint/no-explicit-any */
+/*eslint-disable @typescript-eslint/no-unused-vars */
 // src/app/(protected)/dashboard/admin/vendors/[vendorId]/settings/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { getVendorById } from "@/actions/admin/vendor-actions";
+import { updateVendorSettings } from "@/actions/admin/vendor-settings-actions";
+import ImageUploader from "@/components/admin/vendor/ImageUploader";
+import RichTextEditor from "@/components/admin/vendor/RichTextEditor";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Separator } from "@/components/ui/separator";
-import { toast } from "@/hooks/use-toast";
-import { 
-  Loader2, 
-  Save, 
-  Settings, 
-  Image, 
-  FileText, 
-  Bell, 
-  Layout,
-  Building2,
-  MapPin,
-  Mail,
-  Cloud
-} from "lucide-react";
-import ImageUploader from "@/components/admin/vendor/ImageUploader";
-import RichTextEditor from "@/components/admin/vendor/RichTextEditor";
-import { getVendorById } from "@/actions/admin/vendor-actions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { updateVendorSettings } from "@/actions/admin/vendor-settings-actions";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "@/hooks/use-toast";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Bell,
+  Building2,
+  Cloud,
+  FileText,
+  Image,
+  Layout,
+  Loader2,
+  Mail,
+  MapPin,
+  Save
+} from "lucide-react";
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 // Form schema for vendor settings
 const vendorSettingsSchema = z.object({

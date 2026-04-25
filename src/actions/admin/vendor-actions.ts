@@ -1,3 +1,4 @@
+/*eslint-disable @typescript-eslint/no-unused-vars */
 // src/actions/admin/vendor-actions.ts
 "use server";
 

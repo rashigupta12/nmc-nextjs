@@ -1,3 +1,5 @@
+/*eslint-disable @typescript-eslint/no-explicit-any */
+/*eslint-disable @typescript-eslint/no-unused-vars */
 import { connectToMongoDB } from '@/lib/mongodb';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -19,8 +21,8 @@ export async function GET(request: NextRequest) {
 
     let GeneticVariant;
     try {
-      const module = await import('@/models/geneticVariant');
-      GeneticVariant = module.GeneticVariant;
+      const modelname = await import('@/models/geneticVariant');
+      GeneticVariant = modelname.GeneticVariant;
     } catch (error) {
       console.error('Failed to import GeneticVariant model:', error);
       return NextResponse.json(

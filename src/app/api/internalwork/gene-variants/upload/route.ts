@@ -1,6 +1,7 @@
+/*eslint-disable @typescript-eslint/no-unused-vars */
+import { insertGeneVariantsToMongoDB } from '@/lib/gene/geneVariantMapper';
 import { connectToMongoDB } from '@/lib/mongodb';
 import { NextRequest, NextResponse } from 'next/server';
-import { mapGeneVariantsToMongoDB, insertGeneVariantsToMongoDB } from '@/lib/gene/geneVariantMapper';
 
 export async function POST(request: NextRequest) {
   try {

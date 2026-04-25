@@ -1,4 +1,4 @@
-/*eslint-disable @typescript-eslint/no-explicit-any*/
+
 // src/app/(protected)/dashboard/admin/vendor/patients/create/page.tsx
 "use client";
 

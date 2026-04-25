@@ -1,9 +1,9 @@
 // src/app/(protected)/dashboard/admin/users/page.tsx
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, UserPlus, Users } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UserPlus, Users } from "lucide-react";
 
 export default function UsersManagementPage() {
   return (

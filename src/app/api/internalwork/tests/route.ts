@@ -1,8 +1,10 @@
+
+/*eslint-disable @typescript-eslint/ban-ts-comment */
 //app/api/internalwork/tests/route.ts
-import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { TestCatalogTable } from '@/db/schema';
-import { eq, and, isNull, ilike } from 'drizzle-orm';
+import { and, eq, ilike } from 'drizzle-orm';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {

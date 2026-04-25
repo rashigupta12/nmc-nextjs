@@ -1,29 +1,8 @@
+/*eslint-disable @typescript-eslint/no-explicit-any */
 // src/app/(protected)/dashboard/admin/vendors/[vendorId]/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { getVendorById, updateVendorStatus, deleteVendor, resetVendorPassword } from "@/actions/admin/vendor-actions";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { toast } from "@/hooks/use-toast";
-import { 
-  ArrowLeft, 
-  Edit, 
-  Settings, 
-  Trash2, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Globe,
-  Building2,
-  Calendar,
-  User,
-  AlertCircle
-} from "lucide-react";
-import Link from "next/link";
+import { deleteVendor, getVendorById, resetVendorPassword, updateVendorStatus } from "@/actions/admin/vendor-actions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,9 +14,31 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { KeyRound, Copy } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Building2,
+  Calendar,
+  Copy,
+  Globe,
+  KeyRound,
+  Mail,
+  MapPin,
+  Phone,
+  Settings,
+  Trash2,
+  User
+} from "lucide-react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function VendorDetailsPage() {
   const params = useParams();

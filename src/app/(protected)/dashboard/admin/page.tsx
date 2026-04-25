@@ -102,9 +102,7 @@ export default function AdminDashboardHome() {
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg p-6 text-white">
         <h2 className="text-2xl font-bold">Welcome back, Admin!</h2>
-        <p className="text-blue-100 mt-2">
-          Here's what's happening with your platform today.
-        </p>
+       
       </div>
 
       {/* Stats Grid */}

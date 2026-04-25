@@ -1,11 +1,10 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, FileText, Package, Settings, User } from "lucide-react";
-import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Calendar, FileText, Package, Settings } from "lucide-react";
+import { useSession } from 'next-auth/react';
 
 export default function VendorDashboardPage() {
   const { data: session } = useSession();
