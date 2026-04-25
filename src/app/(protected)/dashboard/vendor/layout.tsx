@@ -16,7 +16,12 @@ import {
   LogOut,
   Settings,
   ChevronDown,
-  ChevronRight,
+  Truck,
+  FileText,
+  BarChart3,
+  HelpCircle,
+  ShoppingCart,
+  ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -30,194 +35,264 @@ export default function VendorLayout({
   const pathname = usePathname();
   const router = useRouter();
 
-  // Default open Patients
-  const [openMenu, setOpenMenu] = useState<"patients" | "orders" | "">(
-    "patients",
-  );
+  // Open Patients by default
+  const [isPatientsOpen, setIsPatientsOpen] = useState(true);
+  const [isOrdersOpen, setIsOrdersOpen] = useState(false);
 
   const handleLogout = async () => {
     await signOut({ redirectTo: "/auth/login" });
   };
 
-  const isActive = (href: string) => pathname === href;
+  const isActive = (href: string) => {
+    if (href === "/dashboard/vendor") {
+      return pathname === href;
+    }
+    return pathname.startsWith(href);
+  };
+
+  const isPatientsActive = () => {
+    return pathname.startsWith("/dashboard/vendor/patients");
+  };
+
+  const isOrdersActive = () => {
+    return pathname.startsWith("/dashboard/vendor/orders");
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 🔝 Navbar */}
+      {/* Top Navigation Bar */}
       <nav className="bg-white shadow-sm border-b px-6 py-3 sticky top-0 z-50">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-gray-800">Vendor Portal</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-semibold text-gray-800">
+              NeoTech Vendor Portal
+            </h1>
+            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+              {session?.user?.role || "VENDOR"}
+            </span>
+          </div>
 
           <Popover>
             <PopoverTrigger asChild>
-              <button className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100">
+              <button className="flex items-center gap-2 hover:bg-gray-50 rounded-lg p-2 transition-colors">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/images/user_alt_icon.png" />
+                  <AvatarImage src="/images/user_alt_icon.png" alt="Vendor" />
                   <AvatarFallback>
                     {session?.user?.name?.charAt(0) || "VN"}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm font-medium">
-                  {session?.user?.name || "Vendor"}
+                <span className="text-sm font-medium text-gray-700">
+                  {session?.user?.name || "Vendor User"}
                 </span>
               </button>
             </PopoverTrigger>
-
-            <PopoverContent align="end" className="w-56">
-              <button
-                onClick={() => router.push("/dashboard/vendor/profile")}
-                className="w-full flex items-center gap-2 p-2 hover:bg-gray-100 rounded"
-              >
-                <Settings className="h-4 w-4" />
-                Profile
-              </button>
-
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-2 p-2 text-red-600 hover:bg-red-50 rounded"
-              >
-                <LogOut className="h-4 w-4" />
-                Logout
-              </button>
+            <PopoverContent className="w-56" align="end">
+              <div className="space-y-1">
+                <button 
+                  onClick={() => router.push("/dashboard/vendor/profile")}
+                  className="w-full flex items-center gap-2 rounded-lg p-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  <Settings className="h-4 w-4" />
+                  Profile Settings
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 rounded-lg p-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </button>
+              </div>
             </PopoverContent>
           </Popover>
         </div>
       </nav>
 
       <div className="flex">
-        {/* 📌 Sidebar */}
-        <aside className="w-64 bg-white border-r min-h-[calc(100vh-64px)] p-4">
-          <nav className="space-y-2">
+        {/* Sidebar */}
+        <aside className="w-64 bg-white border-r min-h-[calc(100vh-64px)] p-4 sticky top-[65px] overflow-y-auto">
+          <nav className="space-y-1">
             {/* Dashboard */}
             <Link href="/dashboard/vendor">
               <button
-                className={`w-full flex items-center gap-2 p-2 rounded-lg ${
+                className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
                   pathname === "/dashboard/vendor"
                     ? "bg-blue-50 text-blue-700"
-                    : "hover:bg-gray-100"
+                    : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <Home className="h-4 w-4" />
-                Dashboard
+                <Home className={`h-4 w-4 ${pathname === "/dashboard/vendor" ? "text-blue-700" : ""}`} />
+                <span className="text-sm font-medium">Dashboard</span>
               </button>
             </Link>
 
-            {/* ================= Patients ================= */}
-            <div>
+            {/* Patients Accordion Section */}
+            <div className="space-y-1">
               <button
-                onClick={() =>
-                  setOpenMenu(openMenu === "patients" ? "" : "patients")
-                }
-                className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-100"
+                onClick={() => setIsPatientsOpen(!isPatientsOpen)}
+                className={`w-full flex items-center justify-between rounded-lg p-2 transition-colors ${
+                  isPatientsActive()
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
               >
                 <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  <span className="font-medium">Patients</span>
+                  <Users className={`h-4 w-4 ${isPatientsActive() ? "text-blue-700" : ""}`} />
+                  <span className="text-sm font-medium">Patients</span>
                 </div>
-
-                {openMenu === "patients" ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform duration-200 ${
+                    isPatientsOpen ? "rotate-180" : ""
+                  }`}
+                />
               </button>
 
-              {openMenu === "patients" && (
-                <div className="ml-6 mt-1 space-y-1 border-l pl-3">
-                  {/* List (Default) */}
-                  <Link href="/dashboard/vendor/patients">
-                    <button
-                      className={`w-full text-left px-2 py-2 rounded-md text-sm ${
-                        isActive("/dashboard/vendor/patients/list")
-                          ? "bg-blue-50 text-blue-700 font-medium"
-                          : "text-gray-600 hover:bg-gray-100"
-                      }`}
-                    >
-                      📋 List Patients
-                    </button>
-                  </Link>
+              <div
+                className={`ml-6 space-y-1 overflow-hidden transition-all duration-200 ${
+                  isPatientsOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                }`}
+              >
+                <Link href="/dashboard/vendor/patients">
+                  <button
+                    className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
+                      pathname === "/dashboard/vendor/patients"
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    <ClipboardList className="h-4 w-4" />
+                    <span className="text-sm">List Patients</span>
+                  </button>
+                </Link>
 
-                  {/* Create */}
-                  <Link href="/dashboard/vendor/patients/create">
-                    <button
-                      className={`w-full text-left px-2 py-2 rounded-md text-sm ${
-                        isActive("/dashboard/vendor/patients/create")
-                          ? "bg-blue-50 text-blue-700 font-medium"
-                          : "text-gray-600 hover:bg-gray-100"
-                      }`}
-                    >
-                      ➕ Add Patient
-                    </button>
-                  </Link>
-                </div>
-              )}
+                <Link href="/dashboard/vendor/patients/create">
+                  <button
+                    className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
+                      pathname === "/dashboard/vendor/patients/create"
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Users className="h-4 w-4" />
+                    <span className="text-sm">Add Patient</span>
+                  </button>
+                </Link>
+              </div>
             </div>
 
-            {/* ================= Orders ================= */}
-            <div>
+            {/* Orders Accordion Section */}
+            <div className="space-y-1">
               <button
-                onClick={() =>
-                  setOpenMenu(openMenu === "orders" ? "" : "orders")
-                }
-                className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-gray-100"
+                onClick={() => setIsOrdersOpen(!isOrdersOpen)}
+                className={`w-full flex items-center justify-between rounded-lg p-2 transition-colors ${
+                  isOrdersActive()
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
               >
                 <div className="flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  <span className="font-medium">Orders</span>
+                  <Package className={`h-4 w-4 ${isOrdersActive() ? "text-blue-700" : ""}`} />
+                  <span className="text-sm font-medium">Orders</span>
                 </div>
-
-                {openMenu === "orders" ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform duration-200 ${
+                    isOrdersOpen ? "rotate-180" : ""
+                  }`}
+                />
               </button>
 
-              {openMenu === "orders" && (
-                <div className="ml-6 mt-1 space-y-1 border-l pl-3">
-                  <Link href="/dashboard/vendor/orders/list">
-                    <button
-                      className={`w-full text-left px-2 py-2 rounded-md text-sm ${
-                        isActive("/dashboard/vendor/orders/list")
-                          ? "bg-blue-50 text-blue-700 font-medium"
-                          : "text-gray-600 hover:bg-gray-100"
-                      }`}
-                    >
-                      📦 List Orders
-                    </button>
-                  </Link>
+              <div
+                className={`ml-6 space-y-1 overflow-hidden transition-all duration-200 ${
+                  isOrdersOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                }`}
+              >
+                <Link href="/dashboard/vendor/orders/list">
+                  <button
+                    className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
+                      pathname === "/dashboard/vendor/orders/list"
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    <ShoppingCart className="h-4 w-4" />
+                    <span className="text-sm">List Orders</span>
+                  </button>
+                </Link>
 
-                  <Link href="/dashboard/vendor/orders/create">
-                    <button
-                      className={`w-full text-left px-2 py-2 rounded-md text-sm ${
-                        isActive("/dashboard/vendor/orders/create")
-                          ? "bg-blue-50 text-blue-700 font-medium"
-                          : "text-gray-600 hover:bg-gray-100"
-                      }`}
-                    >
-                      ➕ Create Order
-                    </button>
-                  </Link>
-
-                  {/* <Link href="/dashboard/vendor/orders/edit">
-                    <button
-                      className={`w-full text-left px-2 py-2 rounded-md text-sm ${
-                        isActive("/dashboard/vendor/orders/edit")
-                          ? "bg-blue-50 text-blue-700 font-medium"
-                          : "text-gray-600 hover:bg-gray-100"
-                      }`}
-                    >
-                      ✏️ Edit Order
-                    </button>
-                  </Link> */}
-                </div>
-              )}
+                <Link href="/dashboard/vendor/orders/create">
+                  <button
+                    className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
+                      pathname === "/dashboard/vendor/orders/create"
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Package className="h-4 w-4" />
+                    <span className="text-sm">Create Order</span>
+                  </button>
+                </Link>
+              </div>
             </div>
+
+            {/* Additional vendor sections (matching admin style) */}
+            <Link href="/dashboard/vendor/shipments">
+              <button
+                className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
+                  pathname.startsWith("/dashboard/vendor/shipments")
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <Truck className={`h-4 w-4 ${pathname.startsWith("/dashboard/vendor/shipments") ? "text-blue-700" : ""}`} />
+                <span className="text-sm font-medium">Shipments ⚠️</span>
+              </button>
+            </Link>
+
+            <Link href="/dashboard/vendor/reports">
+              <button
+                className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
+                  pathname.startsWith("/dashboard/vendor/reports")
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <FileText className={`h-4 w-4 ${pathname.startsWith("/dashboard/vendor/reports") ? "text-blue-700" : ""}`} />
+                <span className="text-sm font-medium">Reports ⚠️</span>
+              </button>
+            </Link>
+
+            <Link href="/dashboard/vendor/analytics">
+              <button
+                className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
+                  pathname.startsWith("/dashboard/vendor/analytics")
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <BarChart3 className={`h-4 w-4 ${pathname.startsWith("/dashboard/vendor/analytics") ? "text-blue-700" : ""}`} />
+                <span className="text-sm font-medium">Analytics ⚠️</span>
+              </button>
+            </Link>
+
+            <Link href="/dashboard/vendor/helpdesk">
+              <button
+                className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
+                  pathname.startsWith("/dashboard/vendor/helpdesk")
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <HelpCircle className={`h-4 w-4 ${pathname.startsWith("/dashboard/vendor/helpdesk") ? "text-blue-700" : ""}`} />
+                <span className="text-sm font-medium">Helpdesk ⚠️</span>
+              </button>
+            </Link>
           </nav>
         </aside>
 
-        {/* 📄 Main Content */}
-        <main className="flex-1 p-6 overflow-auto">{children}</main>
+        {/* Main Content */}
+        <main className="flex-1 p-6 overflow-auto">
+          {children}
+        </main>
       </div>
     </div>
   );
