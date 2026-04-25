@@ -1,6 +1,5 @@
-/**
- * Interface for MongoDB document structure
- */
+// src/lib/gene/geneVariantMapper.ts
+
 interface MongoGeneticVariant {
   testId: string;
   testCode: string;
@@ -42,6 +41,8 @@ interface RsIdObject {
     status: string;
     recommendation?: string;
     interpretation?: string;
+    lifestyle?: string;
+    miscellaneous?: string;
   }>;
 }
 
@@ -49,7 +50,7 @@ interface GeneticVariantDocument {
   testId: string;
   testCode: string;
   testReportName: string;
-  condition: { name: string };
+  condition: { name: string; category?: string };
   gene: { name: string; rsIds: RsIdObject[] };
   section: { id: string; name: string };
   createdAt: Date;
@@ -57,39 +58,45 @@ interface GeneticVariantDocument {
   save: () => Promise<GeneticVariantDocument>;
 }
 
-/**
- * Maps gene variants data to MongoDB schema format
- */
 export function mapGeneVariantsToMongoDB(geneVariantsData: any[]): MongoGeneticVariant[] {
   const groupedData = new Map<string, MongoGeneticVariant>();
 
   for (const variantData of geneVariantsData) {
-    // Extract test information
     const testId = variantData.testId;
     const testCode = variantData.testCode;
     const testReportName = variantData.testReportName;
 
-    // Extract grouping keys
-    const sectionId = variantData.sectionId || variantData.section?.id || 'unknown';
-    const sectionName = variantData.section_name || variantData.section?.name || 'Unknown Section';
+    // Section fallback
+    let sectionId = variantData.sectionId || variantData.section?.id;
+    let sectionName = variantData.section_name || variantData.section?.name;
+    if (!sectionId || !sectionName) {
+      sectionName = variantData.condition_name || 'General';
+      sectionId = sectionName.toLowerCase().replace(/\s+/g, '_');
+    }
+
     const conditionName = variantData.condition_name || variantData.condition?.name || 'Unknown Condition';
+    const category = variantData.condition?.category || variantData.category || 'General';
     const geneName = variantData.gene || variantData.gene?.name || 'Unknown Gene';
     const rsId = variantData.uniqueId || variantData.gene?.rsId || 'unknown';
-    const category = variantData.condition?.category || variantData.category || 'General';
 
-    const groupKey = `${testId}_${sectionId}_${conditionName}_${geneName}`;
-
-    // Create variant object
+    // Build variant with defaults for required fields
     const variant = {
-      testVariant: variantData.test_variant || variantData.testVariant || '',
-      reportVariant: variantData.report_variant || variantData.reportVariant || '',
+      testVariant: variantData.test_variant || variantData.testVariant || 'N/A',
+      reportVariant: variantData.report_variant || variantData.reportVariant || 'N/A',
       response: variantData.response || 'N/A',
       status: variantData.status || 'N/A',
       recommendation: variantData.recommendation || '',
       interpretation: variantData.interpretation || '',
       lifestyle: variantData.lifestyle || '',
-      miscellaneous: variantData.miscellaneous || '',
+      miscellaneous: JSON.stringify({
+        homo_hetro: variantData['homo/hetro'] || null,
+        functional_nonfunctional: variantData['functional/nonfunctional'] || null,
+        genotype: variantData.genotype || null,
+        medication: variantData.medication || null,
+      }),
     };
+
+    const groupKey = `${testId}_${sectionId}_${conditionName}_${geneName}`;
 
     if (groupedData.has(groupKey)) {
       const existingDoc = groupedData.get(groupKey)!;
@@ -135,9 +142,6 @@ export function mapGeneVariantsToMongoDB(geneVariantsData: any[]): MongoGeneticV
   return Array.from(groupedData.values());
 }
 
-/**
- * Bulk insert function for MongoDB
- */
 export async function insertGeneVariantsToMongoDB(geneVariantsData: any[]) {
   try {
     const validation = validateGeneVariantsData(geneVariantsData);
@@ -164,6 +168,7 @@ export async function insertGeneVariantsToMongoDB(geneVariantsData: any[]) {
       }) as GeneticVariantDocument | null;
 
       if (existingDoc) {
+        // Merge rsIds and variants
         const existingRsIdsMap = new Map<string, RsIdObject>(
           existingDoc.gene.rsIds.map((rs: RsIdObject) => [rs.uniqueId, rs])
         );
@@ -174,7 +179,6 @@ export async function insertGeneVariantsToMongoDB(geneVariantsData: any[]) {
             const existingVariantsMap = new Map(
               existingRsId.variants.map((v: any) => [v.testVariant, v])
             );
-
             for (const newVariant of newRsId.variants) {
               existingVariantsMap.set(newVariant.testVariant, newVariant);
             }
@@ -201,9 +205,6 @@ export async function insertGeneVariantsToMongoDB(geneVariantsData: any[]) {
   }
 }
 
-/**
- * Validation function for gene variants data
- */
 export function validateGeneVariantsData(geneVariantsData: any[]): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
@@ -220,24 +221,21 @@ export function validateGeneVariantsData(geneVariantsData: any[]): { valid: bool
       continue;
     }
 
-    // Validate test information
     if (!variant.testId) errors.push(`Record ${i + 1}: Missing testId`);
     if (!variant.testCode) errors.push(`Record ${i + 1}: Missing testCode`);
     if (!variant.testReportName) errors.push(`Record ${i + 1}: Missing testReportName`);
+    if (!variant.condition_name && (!variant.condition || !variant.condition.name)) {
+      errors.push(`Record ${i + 1}: Missing condition name`);
+    }
+    if (!variant.gene && (!variant.gene || !variant.gene.name)) {
+      errors.push(`Record ${i + 1}: Missing gene name`);
+    }
+    if (!variant.uniqueId && (!variant.gene || !variant.gene.rsId)) {
+      errors.push(`Record ${i + 1}: Missing uniqueId/rsId`);
+    }
 
-    // Validate variant data
-    const sectionId = variant.sectionId || variant.section?.id;
-    const conditionName = variant.condition_name || variant.condition?.name;
-    const geneName = variant.gene || variant.gene?.name;
     const rsId = variant.uniqueId || variant.gene?.rsId;
-
-    if (!sectionId) errors.push(`Record ${i + 1}: Missing section information`);
-    if (!conditionName) errors.push(`Record ${i + 1}: Missing condition information`);
-    if (!geneName) errors.push(`Record ${i + 1}: Missing gene information`);
-    if (!rsId) errors.push(`Record ${i + 1}: Missing rsId/uniqueId`);
-
-    // Validate rsID format
-    if (rsId && rsId !== 'unknown' && !/^rs\d+$/.test(rsId)) {
+    if (rsId && rsId !== 'unknown' && typeof rsId === 'string' && !/^rs\d+$/.test(rsId)) {
       errors.push(`Record ${i + 1}: Invalid rsID format: ${rsId}`);
     }
   }

@@ -4,6 +4,14 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -16,20 +24,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useCurrentUser } from "@/hooks/auth";
 import {
   Download,
@@ -42,7 +36,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
-import * as XLSX from "xlsx";
+import * as XLSX from 'xlsx';
 
 interface Test {
   id: string;
@@ -62,13 +56,12 @@ interface Test {
 export default function TestCatalogPage() {
   const user = useCurrentUser();
   const [tests, setTests] = useState<Test[]>([]);
-  const [allTests, setAllTests] = useState<Test[]>([]); // For parent/subparent dropdowns
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [showCreateSheet, setShowCreateSheet] = useState(false);
-  const [showEditSheet, setShowEditSheet] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showBulkDialog, setShowBulkDialog] = useState(false);
   const [selectedTest, setSelectedTest] = useState<Test | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -87,38 +80,31 @@ export default function TestCatalogPage() {
     isActive: true,
   });
 
-  // Fetch tests (only active by default)
-  const fetchTests = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `/api/admin/test-catalog?page=${page}&limit=20&search=${search}&isActive=true`
-      );
-      const data = await res.json();
-      setTests(data.tests);
-      setTotalPages(data.pagination.totalPages);
-    } catch (error) {
-      console.error("Error fetching tests:", error);
-      Swal.fire("Error", "Failed to load tests", "error");
-    } finally {
-      setLoading(false);
+  // Fetch tests
+ const fetchTests = async () => {
+  setLoading(true);
+  try {
+    const res = await fetch(
+      `/api/admin/test-catalog?page=${page}&limit=20&search=${search}`
+    );
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
     }
-  };
-
-  // Fetch all tests (including inactive) for parent/subparent dropdowns
-  const fetchAllTests = async () => {
-    try {
-      const res = await fetch(`/api/admin/test-catalog?limit=1000`);
-      const data = await res.json();
-      setAllTests(data.tests);
-    } catch (error) {
-      console.error("Error fetching all tests for dropdown:", error);
-    }
-  };
+    const data = await res.json();
+    setTests(data.tests || []);                       // fallback to empty array
+    setTotalPages(data.pagination?.totalPages || 1);  // optional chaining + fallback
+  } catch (error) {
+    console.error("Error fetching tests:", error);
+    Swal.fire("Error", "Failed to load tests", "error");
+    setTests([]);                                     // ensure array on error
+    setTotalPages(1);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchTests();
-    fetchAllTests();
   }, [page, search]);
 
   // Create test
@@ -142,10 +128,9 @@ export default function TestCatalogPage() {
 
       if (res.ok) {
         Swal.fire("Success", "Test created successfully", "success");
-        setShowCreateSheet(false);
+        setShowCreateDialog(false);
         resetForm();
         fetchTests();
-        fetchAllTests(); // refresh dropdown list
       } else {
         const error = await res.json();
         Swal.fire("Error", error.error || "Failed to create test", "error");
@@ -173,10 +158,9 @@ export default function TestCatalogPage() {
 
       if (res.ok) {
         Swal.fire("Success", "Test updated successfully", "success");
-        setShowEditSheet(false);
+        setShowEditDialog(false);
         resetForm();
         fetchTests();
-        fetchAllTests();
       } else {
         const error = await res.json();
         Swal.fire("Error", error.error || "Failed to update test", "error");
@@ -207,7 +191,6 @@ export default function TestCatalogPage() {
         if (res.ok) {
           Swal.fire("Deleted!", "Test has been deleted.", "success");
           fetchTests();
-          fetchAllTests();
         } else {
           throw new Error("Failed to delete");
         }
@@ -218,7 +201,7 @@ export default function TestCatalogPage() {
     }
   };
 
-  // Bulk upload (unchanged)
+  // Bulk upload
   const handleBulkUpload = async () => {
     if (!excelFile) {
       Swal.fire("Error", "Please select an Excel file", "error");
@@ -255,7 +238,6 @@ export default function TestCatalogPage() {
 
         if (result.summary.success > 0) {
           fetchTests();
-          fetchAllTests();
         }
         setShowBulkDialog(false);
         setExcelFile(null);
@@ -270,7 +252,7 @@ export default function TestCatalogPage() {
     }
   };
 
-  // Download template (unchanged)
+  // Download template
   const downloadTemplate = () => {
     const template = [
       {
@@ -318,7 +300,7 @@ export default function TestCatalogPage() {
     setSelectedTest(null);
   };
 
-  const openEditSheet = (test: Test) => {
+  const openEditDialog = (test: Test) => {
     setSelectedTest(test);
     setFormData({
       testCode: test.testCode,
@@ -331,18 +313,11 @@ export default function TestCatalogPage() {
       price: test.price || "",
       isActive: test.isActive,
     });
-    setShowEditSheet(true);
-  };
-
-  // Helper to get test name from ID
-  const getTestNameById = (id: string | null) => {
-    if (!id) return "None";
-    const test = allTests.find(t => t.id === id);
-    return test ? `${test.testName} (${test.testCode})` : "Unknown";
+    setShowEditDialog(true);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white w-full">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white  w-full">
       <div className="mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -367,7 +342,7 @@ export default function TestCatalogPage() {
               <Button
                 onClick={() => {
                   resetForm();
-                  setShowCreateSheet(true);
+                  setShowCreateDialog(true);
                 }}
                 className="bg-blue-600 hover:bg-blue-700"
               >
@@ -453,7 +428,7 @@ export default function TestCatalogPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => openEditSheet(test)}
+                                  onClick={() => openEditDialog(test)}
                                 >
                                   <Pencil className="h-4 w-4" />
                                 </Button>
@@ -502,16 +477,16 @@ export default function TestCatalogPage() {
         </Card>
       </div>
 
-      {/* Create Sheet - Right Side Drawer */}
-      <Sheet open={showCreateSheet} onOpenChange={setShowCreateSheet}>
-        <SheetContent className="w-[600px] sm:max-w-2xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Add New Test</SheetTitle>
-            <SheetDescription>
+      {/* Create Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Test</DialogTitle>
+            <DialogDescription>
               Enter the test details to add it to the catalog
-            </SheetDescription>
-          </SheetHeader>
-          <div className="space-y-4 mt-6">
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Test Code *</Label>
@@ -557,54 +532,6 @@ export default function TestCatalogPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Parent Test</Label>
-                <Select
-                  value={formData.parentTestId || "none"}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, parentTestId: value === "none" ? "" : value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select parent test" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {allTests
-                      .filter(t => t.id !== selectedTest?.id) // Avoid self-reference in edit mode
-                      .map((test) => (
-                        <SelectItem key={test.id} value={test.id}>
-                          {test.testName} ({test.testCode})
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Sub Parent Of</Label>
-                <Select
-                  value={formData.subParentOf || "none"}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, subParentOf: value === "none" ? "" : value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select sub-parent test" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {allTests
-                      .filter(t => t.id !== selectedTest?.id)
-                      .map((test) => (
-                        <SelectItem key={test.id} value={test.id}>
-                          {test.testName} ({test.testCode})
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
                 <Label>TAT (Days) *</Label>
                 <Input
                   type="number"
@@ -627,6 +554,26 @@ export default function TestCatalogPage() {
                 />
               </div>
             </div>
+            <div>
+              <Label>Parent Test ID</Label>
+              <Input
+                value={formData.parentTestId}
+                onChange={(e) =>
+                  setFormData({ ...formData, parentTestId: e.target.value })
+                }
+                placeholder="Optional"
+              />
+            </div>
+            <div>
+              <Label>Sub Parent Of</Label>
+              <Input
+                value={formData.subParentOf}
+                onChange={(e) =>
+                  setFormData({ ...formData, subParentOf: e.target.value })
+                }
+                placeholder="Optional"
+              />
+            </div>
             <div className="flex items-center justify-between">
               <Label>Active Status</Label>
               <Switch
@@ -637,27 +584,27 @@ export default function TestCatalogPage() {
               />
             </div>
           </div>
-          <div className="flex justify-end gap-3 mt-6">
-            <Button variant="outline" onClick={() => setShowCreateSheet(false)}>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
               Cancel
             </Button>
             <Button onClick={handleCreate} className="bg-blue-600">
               Create Test
             </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* Edit Sheet - Right Side Drawer */}
-      <Sheet open={showEditSheet} onOpenChange={setShowEditSheet}>
-        <SheetContent className="w-[600px] sm:max-w-2xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Edit Test</SheetTitle>
-            <SheetDescription>
+      {/* Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Test</DialogTitle>
+            <DialogDescription>
               Update the test details
-            </SheetDescription>
-          </SheetHeader>
-          <div className="space-y-4 mt-6">
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Test Code *</Label>
@@ -703,64 +650,6 @@ export default function TestCatalogPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Parent Test</Label>
-                <Select
-                  value={formData.parentTestId || "none"}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, parentTestId: value === "none" ? "" : value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select parent test" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {allTests
-                      .filter(t => t.id !== selectedTest?.id)
-                      .map((test) => (
-                        <SelectItem key={test.id} value={test.id}>
-                          {test.testName} ({test.testCode})
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-                {selectedTest?.parentTestId && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Current: {getTestNameById(selectedTest.parentTestId)}
-                  </p>
-                )}
-              </div>
-              <div>
-                <Label>Sub Parent Of</Label>
-                <Select
-                  value={formData.subParentOf || "none"}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, subParentOf: value === "none" ? "" : value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select sub-parent test" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {allTests
-                      .filter(t => t.id !== selectedTest?.id)
-                      .map((test) => (
-                        <SelectItem key={test.id} value={test.id}>
-                          {test.testName} ({test.testCode})
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-                {selectedTest?.subParentOf && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Current: {getTestNameById(selectedTest.subParentOf)}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
                 <Label>TAT (Days) *</Label>
                 <Input
                   type="number"
@@ -783,6 +672,26 @@ export default function TestCatalogPage() {
                 />
               </div>
             </div>
+            <div>
+              <Label>Parent Test ID</Label>
+              <Input
+                value={formData.parentTestId}
+                onChange={(e) =>
+                  setFormData({ ...formData, parentTestId: e.target.value })
+                }
+                placeholder="Optional"
+              />
+            </div>
+            <div>
+              <Label>Sub Parent Of</Label>
+              <Input
+                value={formData.subParentOf}
+                onChange={(e) =>
+                  setFormData({ ...formData, subParentOf: e.target.value })
+                }
+                placeholder="Optional"
+              />
+            </div>
             <div className="flex items-center justify-between">
               <Label>Active Status</Label>
               <Switch
@@ -793,19 +702,70 @@ export default function TestCatalogPage() {
               />
             </div>
           </div>
-          <div className="flex justify-end gap-3 mt-6">
-            <Button variant="outline" onClick={() => setShowEditSheet(false)}>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
               Cancel
             </Button>
             <Button onClick={handleUpdate} className="bg-blue-600">
               Update Test
             </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* Bulk Upload Dialog (unchanged) */}
-      {/* ... keep the same bulk dialog ... */}
+      {/* Bulk Upload Dialog */}
+      <Dialog open={showBulkDialog} onOpenChange={setShowBulkDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk Upload Tests</DialogTitle>
+            <DialogDescription>
+              Upload an Excel file with multiple tests at once
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+              <p className="text-sm text-gray-600 mb-2">
+                Click to select or drag and drop your Excel file
+              </p>
+              <Input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={(e) => setExcelFile(e.target.files?.[0] || null)}
+                className="cursor-pointer"
+              />
+              {excelFile && (
+                <p className="text-xs text-gray-500 mt-2">
+                  Selected: {excelFile.name}
+                </p>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              onClick={downloadTemplate}
+              className="w-full"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download Template
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBulkDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleBulkUpload} disabled={uploading}>
+              {uploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                "Upload"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

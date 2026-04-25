@@ -1,7 +1,5 @@
 import { connectToMongoDB } from '@/lib/mongodb';
-
 import { NextRequest, NextResponse } from 'next/server';
-
 import { mapGeneVariantsToMongoDB, insertGeneVariantsToMongoDB } from '@/lib/gene/geneVariantMapper';
 
 export async function POST(request: NextRequest) {
@@ -22,7 +20,6 @@ export async function POST(request: NextRequest) {
     const testCode = formData.get('testCode');
     const testReportName = formData.get('testReportName');
 
-    // Validate required fields
     if (!file || !(file instanceof File)) {
       return NextResponse.json({
         success: false,
@@ -37,10 +34,10 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Read and parse file
     const fileContent = await file.text();
+    // Remove any shell preexec lines
     const cleanContent = fileContent.replace(/^;vte\.shell\.preexec![^\n]*\n/, '');
-    
+
     let geneVariantsData: any[];
     try {
       const parsedData = JSON.parse(cleanContent);
@@ -53,7 +50,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Add test information to each record
+    // Add test metadata to each record
     geneVariantsData = geneVariantsData.map(record => ({
       ...record,
       testId: testId.toString(),
@@ -61,14 +58,13 @@ export async function POST(request: NextRequest) {
       testReportName: testReportName.toString(),
     }));
 
-    // Process and insert data
-    const mappedData = mapGeneVariantsToMongoDB(geneVariantsData);
+    // Insert into MongoDB
     const result = await insertGeneVariantsToMongoDB(geneVariantsData);
 
-    // Extract summary
-    const conditions = [...new Set(geneVariantsData.map(v => v.condition_name || v.condition?.name || 'Unknown'))];
-    const genes = [...new Set(geneVariantsData.map(v => v.gene || v.gene?.name || 'Unknown'))];
-    const rsIds = [...new Set(geneVariantsData.map(v => v.uniqueId || v.gene?.rsId || 'Unknown'))];
+    // Summary statistics
+    const conditions = [...new Set(geneVariantsData.map(v => v.condition_name || 'Unknown'))];
+    const genes = [...new Set(geneVariantsData.map(v => v.gene || 'Unknown'))];
+    const rsIds = [...new Set(geneVariantsData.map(v => v.uniqueId || 'Unknown'))];
 
     return NextResponse.json({
       success: true,
@@ -79,7 +75,6 @@ export async function POST(request: NextRequest) {
         testReportName: testReportName.toString(),
         recordsProcessed: geneVariantsData.length,
         recordsInserted: result.length,
-        mappedRecords: mappedData.length,
         conditions,
         genes,
         rsIds,

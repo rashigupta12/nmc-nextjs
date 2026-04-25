@@ -42,9 +42,7 @@ export async function GET(request: NextRequest) {
         )
       );
     }
-    
-    // Only get parent tests (not sub-tests) for main selection
-    conditions.push(isNull(TestCatalogTable.parentTestId));
+
     
     if (conditions.length > 0) {
       // @ts-ignore
