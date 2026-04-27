@@ -68,7 +68,7 @@ export default function VendorLayout({
               NeoTech Vendor Portal
             </h1>
             <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-              {session?.user?.role || "VENDOR"}
+              { "VENDOR"}
             </span>
           </div>
 
