@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { VendorsTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { hash, compare } from "bcryptjs";
-import { auth } from "@/auth";
+import { auth, signOut } from "@/auth";
 import { VendorResetPasswordSchema } from "@/validaton-schema";
 import { z } from "zod";
 
@@ -62,10 +62,24 @@ export async function updateVendorPassword(
       })
       .where(eq(VendorsTable.id, vendorId));
 
+    // ✅ BUGFIX: Clear JWT token cache by signing out and redirecting to login
+    // This forces a fresh session with updated isPasswordReset = false
+    
+    // Get vendor's unique login slug to redirect back to their specific login page
+    const vendorLoginUrl = `/vendor/login/${vendor.loginSlug}?passwordUpdated=1`;
+    
+    // Return redirect url to client instead of throwing inside try catch
     return {
-      success: "Password updated successfully. Redirecting to dashboard...",
+      success: "Password updated successfully. Redirecting to login...",
+      redirectTo: vendorLoginUrl
     };
+
   } catch (error) {
+    // Check if this is the expected Next.js redirect throw
+    if ((error as any)?.digest?.startsWith('NEXT_REDIRECT')) {
+      throw error; // Let Next.js handle the redirect normally
+    }
+    
     console.error("Error updating vendor password:", error);
     return { error: "Failed to update password. Please try again." };
   }

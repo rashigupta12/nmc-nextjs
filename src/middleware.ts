@@ -61,6 +61,17 @@ export default auth(async (req) => {
       return NextResponse.redirect(new URL("/auth/login", req.url));
     }
 
+    // ✅ STRICT ROUTE BOUNDARIES - MULTI-TENANT ISOLATION
+    // Vendors cannot access any admin/dashboard routes
+    if (token.role === 'VENDOR' && nextUrl.pathname.startsWith('/dashboard')) {
+      return NextResponse.redirect(new URL("/vendor/dashboard", req.url));
+    }
+
+    // Admins/Owners cannot access any vendor routes
+    if (token.role !== 'VENDOR' && nextUrl.pathname.startsWith('/vendor')) {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+
     // Enforce vendor password reset before accessing any protected route
     if (
       token.role === "VENDOR" &&

@@ -53,9 +53,9 @@ export function VendorResetPasswordForm() {
 
       if (result?.success) {
         setSuccess(result.success);
-        // Redirect to dashboard after a short delay so the user sees the success message
+        // Redirect to location specified by server action
         setTimeout(() => {
-          window.location.href = VENDOR_LOGIN_REDIRECT;
+          window.location.href = result.redirectTo || VENDOR_LOGIN_REDIRECT;
         }, 1500);
       }
     });
