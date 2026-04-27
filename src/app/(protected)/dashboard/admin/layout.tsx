@@ -47,10 +47,26 @@ export default function AdminLayout({
 
   // Genetic Data dropdown items
   const geneticItems = [
-    { href: "/dashboard/admin/genetic-data/variants", label: "Gene Variants", icon: FileSearch },
-    { href: "/dashboard/admin/genetic-data/gene-page", label: "Gene Page Data", icon: Database },
-    { href: "/dashboard/admin/genetic-data/gene-description", label: "Gene Page Description", icon: Info },
-    { href: "/dashboard/admin/genetic-data/additional-data", label: "Additional Data", icon: PlusCircle },
+    {
+      href: "/dashboard/admin/genetic-data/variants",
+      label: "Gene Variants",
+      icon: FileSearch,
+    },
+    {
+      href: "/dashboard/admin/genetic-data/gene-page",
+      label: "Gene Page Data",
+      icon: Database,
+    },
+    {
+      href: "/dashboard/admin/genetic-data/gene-description",
+      label: "Gene Page Description",
+      icon: Info,
+    },
+    {
+      href: "/dashboard/admin/genetic-data/additional-data",
+      label: "Additional Data",
+      icon: PlusCircle,
+    },
   ];
 
   const isActive = (href: string) => {
@@ -94,7 +110,7 @@ export default function AdminLayout({
             </PopoverTrigger>
             <PopoverContent className="w-56" align="end">
               <div className="space-y-1">
-                <button 
+                <button
                   onClick={() => router.push("/dashboard/admin/profile")}
                   className="w-full flex items-center gap-2 rounded-lg p-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                 >
@@ -127,7 +143,9 @@ export default function AdminLayout({
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <Home className={`h-4 w-4 ${pathname === "/dashboard/admin" ? "text-blue-700" : ""}`} />
+                <Home
+                  className={`h-4 w-4 ${pathname === "/dashboard/admin" ? "text-blue-700" : ""}`}
+                />
                 <span className="text-sm font-medium">Dashboard</span>
               </button>
             </Link>
@@ -141,7 +159,9 @@ export default function AdminLayout({
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <Building2 className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/vendors") ? "text-blue-700" : ""}`} />
+                <Building2
+                  className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/vendors") ? "text-blue-700" : ""}`}
+                />
                 <span className="text-sm font-medium">Vendors</span>
               </button>
             </Link>
@@ -155,7 +175,9 @@ export default function AdminLayout({
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <PenIcon className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/test-catalog") ? "text-blue-700" : ""}`} />
+                <PenIcon
+                  className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/test-catalog") ? "text-blue-700" : ""}`}
+                />
                 <span className="text-sm font-medium">Test Catalog</span>
               </button>
             </Link>
@@ -172,7 +194,9 @@ export default function AdminLayout({
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <Dna className={`h-4 w-4 ${isGeneticActive() ? "text-blue-700" : ""}`} />
+                  <Dna
+                    className={`h-4 w-4 ${isGeneticActive() ? "text-blue-700" : ""}`}
+                  />
                   <span className="text-sm font-medium">Genetic Data</span>
                 </div>
                 <ChevronDown
@@ -200,7 +224,9 @@ export default function AdminLayout({
                             : "text-gray-600 hover:bg-gray-100"
                         }`}
                       >
-                        <Icon className={`h-4 w-4 ${active ? "text-blue-700" : ""}`} />
+                        <Icon
+                          className={`h-4 w-4 ${active ? "text-blue-700" : ""}`}
+                        />
                         <span className="text-sm">{item.label}</span>
                       </button>
                     </Link>
@@ -209,6 +235,35 @@ export default function AdminLayout({
               </div>
             </div>
 
+            <Link href="/dashboard/admin/hospitals">
+              <button
+                className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
+                  pathname.startsWith("/dashboard/admin/hospitals")
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <FileText
+                  className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/samples") ? "text-blue-700" : ""}`}
+                />
+                <span className="text-sm font-medium">Hospitals</span>
+              </button>
+            </Link>
+
+              <Link href="/dashboard/admin/ethnicity">
+              <button
+                className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
+                  pathname.startsWith("/dashboard/admin/ethnicity")
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <FileText
+                  className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/ethnicity") ? "text-blue-700" : ""}`}
+                />
+                <span className="text-sm font-medium">Ethnicity</span>
+              </button>
+            </Link>
             {/* Remaining navigation items */}
             <Link href="/dashboard/admin/samples">
               <button
@@ -218,7 +273,9 @@ export default function AdminLayout({
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <FileText className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/samples") ? "text-blue-700" : ""}`} />
+                <FileText
+                  className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/samples") ? "text-blue-700" : ""}`}
+                />
                 <span className="text-sm font-medium">Samples ⚠️</span>
               </button>
             </Link>
@@ -231,7 +288,9 @@ export default function AdminLayout({
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <Truck className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/shipments") ? "text-blue-700" : ""}`} />
+                <Truck
+                  className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/shipments") ? "text-blue-700" : ""}`}
+                />
                 <span className="text-sm font-medium">Shipments ⚠️</span>
               </button>
             </Link>
@@ -244,7 +303,9 @@ export default function AdminLayout({
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <BookOpen className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/reports") ? "text-blue-700" : ""}`} />
+                <BookOpen
+                  className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/reports") ? "text-blue-700" : ""}`}
+                />
                 <span className="text-sm font-medium">Reports ⚠️</span>
               </button>
             </Link>
@@ -257,7 +318,9 @@ export default function AdminLayout({
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <BarChart3 className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/analytics") ? "text-blue-700" : ""}`} />
+                <BarChart3
+                  className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/analytics") ? "text-blue-700" : ""}`}
+                />
                 <span className="text-sm font-medium">Analytics ⚠️</span>
               </button>
             </Link>
@@ -270,7 +333,9 @@ export default function AdminLayout({
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <HelpCircle className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/helpdesk") ? "text-blue-700" : ""}`} />
+                <HelpCircle
+                  className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/helpdesk") ? "text-blue-700" : ""}`}
+                />
                 <span className="text-sm font-medium">Helpdesk ⚠️</span>
               </button>
             </Link>
@@ -283,7 +348,9 @@ export default function AdminLayout({
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <Settings className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/settings") ? "text-blue-700" : ""}`} />
+                <Settings
+                  className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/settings") ? "text-blue-700" : ""}`}
+                />
                 <span className="text-sm font-medium">Settings ⚠️</span>
               </button>
             </Link>
@@ -291,9 +358,7 @@ export default function AdminLayout({
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-6 overflow-auto">
-          {children}
-        </main>
+        <main className="flex-1 p-6 overflow-auto">{children}</main>
       </div>
     </div>
   );

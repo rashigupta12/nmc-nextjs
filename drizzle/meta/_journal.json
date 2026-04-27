@@ -15,6 +15,27 @@
       "when": 1776945579495,
       "tag": "0001_curvy_young_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777265642505,
+      "tag": "0002_outgoing_mentor",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1777266945208,
+      "tag": "0003_white_micromacro",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777267316175,
+      "tag": "0004_dazzling_chimera",
+      "breakpoints": true
     }
   ]
 }
