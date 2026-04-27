@@ -76,9 +76,16 @@ interface Test {
   updatedAt: string;
 }
 
+// Extended test interface for display
+interface TestWithParentNames extends Test {
+  parentTestName?: string;
+  subParentName?: string;
+}
+
 export default function TestCatalogPage() {
   const user = useCurrentUser();
-  const [tests, setTests] = useState<Test[]>([]);
+  const [tests, setTests] = useState<TestWithParentNames[]>([]);
+  const [allTests, setAllTests] = useState<Test[]>([]); // Store all tests for parent lookup
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -101,15 +108,43 @@ export default function TestCatalogPage() {
     alias: "",
     description: "",
     parentTestId: "",
+    parentTestName: "",
     subParentOf: "",
+    subParentName: "",
     tatDays: "",
     price: "",
     isActive: true,
   });
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  
+  // Parent test options for dropdown
+  const [parentOptions, setParentOptions] = useState<{ id: string; name: string; code: string }[]>([]);
 
-  // Fetch tests
+  // Fetch all tests for parent lookup
+  const fetchAllTests = async () => {
+    try {
+      const res = await fetch(`/api/admin/test-catalog?limit=1000`);
+      if (res.ok) {
+        const data = await res.json();
+        setAllTests(data.tests || []);
+        
+        // Build parent options (only tests that can be parents)
+        const options = (data.tests || [])
+          .filter((test: Test) => test.isActive)
+          .map((test: Test) => ({
+            id: test.id,
+            name: test.testName,
+            code: test.testCode,
+          }));
+        setParentOptions(options);
+      }
+    } catch (error) {
+      console.error("Error fetching all tests:", error);
+    }
+  };
+
+  // Fetch tests with pagination
   const fetchTests = async () => {
     setLoading(true);
     try {
@@ -124,7 +159,15 @@ export default function TestCatalogPage() {
         throw new Error(`HTTP ${res.status}`);
       }
       const data = await res.json();
-      setTests(data.tests || []);
+      
+      // Enrich tests with parent names
+      const enrichedTests = (data.tests || []).map((test: Test) => ({
+        ...test,
+        parentTestName: getParentTestName(test.parentTestId),
+        subParentName: getParentTestName(test.subParentOf),
+      }));
+      
+      setTests(enrichedTests);
       setTotalPages(data.pagination?.totalPages || 1);
       setTotalRecords(data.pagination?.total || 0);
     } catch (error) {
@@ -137,9 +180,26 @@ export default function TestCatalogPage() {
     }
   };
 
+  // Helper: Get parent test name by ID
+  const getParentTestName = (parentId: string | null): string | undefined => {
+    if (!parentId) return undefined;
+    const parent = allTests.find(t => t.id === parentId);
+    return parent ? `${parent.testName} (${parent.testCode})` : undefined;
+  };
+
+  // Helper: Get parent test by ID
+  const getParentTestById = (parentId: string | null): Test | undefined => {
+    if (!parentId) return undefined;
+    return allTests.find(t => t.id === parentId);
+  };
+
+  useEffect(() => {
+    fetchAllTests();
+  }, []);
+
   useEffect(() => {
     fetchTests();
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, allTests]);
 
   useEffect(() => {
     setPage(1);
@@ -152,13 +212,33 @@ export default function TestCatalogPage() {
       alias: "",
       description: "",
       parentTestId: "",
+      parentTestName: "",
       subParentOf: "",
+      subParentName: "",
       tatDays: "",
       price: "",
       isActive: true,
     });
     setEditingTest(null);
     setFormError(null);
+  };
+
+  // Handle parent selection
+  const handleParentSelect = (value: string, field: 'parentTestId' | 'subParentOf') => {
+    const selectedParent = parentOptions.find(opt => opt.id === value);
+    if (selectedParent) {
+      setFormData(prev => ({
+        ...prev,
+        [field]: selectedParent.id,
+        [`${field === 'parentTestId' ? 'parentTestName' : 'subParentName'}`]: selectedParent.name,
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [field]: "",
+        [`${field === 'parentTestId' ? 'parentTestName' : 'subParentName'}`]: "",
+      }));
+    }
   };
 
   // Create test
@@ -176,9 +256,15 @@ export default function TestCatalogPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formData,
+          testCode: formData.testCode,
+          testName: formData.testName,
+          alias: formData.alias || null,
+          description: formData.description || null,
+          parentTestId: formData.parentTestId || null,
+          subParentOf: formData.subParentOf || null,
           tatDays: parseInt(formData.tatDays),
           price: formData.price ? parseFloat(formData.price) : null,
+          isActive: formData.isActive,
           createdBy: user?.id,
         }),
       });
@@ -187,7 +273,8 @@ export default function TestCatalogPage() {
         setMessage({ type: 'success', text: "Test created successfully" });
         setSheetOpen(false);
         resetForm();
-        fetchTests();
+        await fetchAllTests();
+        await fetchTests();
       } else {
         const error = await res.json();
         setFormError(error.error || "Failed to create test");
@@ -212,9 +299,15 @@ export default function TestCatalogPage() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formData,
+          testCode: formData.testCode,
+          testName: formData.testName,
+          alias: formData.alias || null,
+          description: formData.description || null,
+          parentTestId: formData.parentTestId || null,
+          subParentOf: formData.subParentOf || null,
           tatDays: parseInt(formData.tatDays),
           price: formData.price ? parseFloat(formData.price) : null,
+          isActive: formData.isActive,
         }),
       });
 
@@ -222,7 +315,8 @@ export default function TestCatalogPage() {
         setMessage({ type: 'success', text: "Test updated successfully" });
         setSheetOpen(false);
         resetForm();
-        fetchTests();
+        await fetchAllTests();
+        await fetchTests();
       } else {
         const error = await res.json();
         setFormError(error.error || "Failed to update test");
@@ -246,7 +340,8 @@ export default function TestCatalogPage() {
 
       if (res.ok) {
         setMessage({ type: 'success', text: "Test deleted successfully" });
-        fetchTests();
+        await fetchAllTests();
+        await fetchTests();
       } else {
         throw new Error("Failed to delete");
       }
@@ -267,14 +362,14 @@ export default function TestCatalogPage() {
     }
 
     setUploading(true);
-    const formData = new FormData();
-    formData.append("file", excelFile);
-    formData.append("createdBy", user?.id || "");
+    const formDataUpload = new FormData();
+    formDataUpload.append("file", excelFile);
+    formDataUpload.append("createdBy", user?.id || "");
 
     try {
       const res = await fetch("/api/admin/test-catalog", {
         method: "PUT",
-        body: formData,
+        body: formDataUpload,
       });
 
       const result = await res.json();
@@ -295,7 +390,8 @@ export default function TestCatalogPage() {
         });
 
         if (result.summary.success > 0) {
-          fetchTests();
+          await fetchAllTests();
+          await fetchTests();
         }
         setShowBulkSheet(false);
         setExcelFile(null);
@@ -343,7 +439,7 @@ export default function TestCatalogPage() {
     XLSX.writeFile(workbook, "test_catalog_template.xlsx");
   };
 
-  const openEditDialog = (test: Test) => {
+  const openEditDialog = (test: TestWithParentNames) => {
     setEditingTest(test);
     setFormData({
       testCode: test.testCode,
@@ -351,7 +447,9 @@ export default function TestCatalogPage() {
       alias: test.alias || "",
       description: test.description || "",
       parentTestId: test.parentTestId || "",
+      parentTestName: test.parentTestName || "",
       subParentOf: test.subParentOf || "",
+      subParentName: test.subParentName || "",
       tatDays: test.tatDays.toString(),
       price: test.price || "",
       isActive: test.isActive,
@@ -371,15 +469,6 @@ export default function TestCatalogPage() {
 
   const hasFilters = search !== '' || statusFilter !== 'all';
 
-  // Helper function to format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (editingTest) {
@@ -390,7 +479,7 @@ export default function TestCatalogPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50/60 p-6">
+    <div className="min-h-screen bg-gray-50/60">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -492,8 +581,9 @@ export default function TestCatalogPage() {
                     <TableHead className="font-semibold">Test Code</TableHead>
                     <TableHead className="font-semibold">Test Name</TableHead>
                     <TableHead className="font-semibold">Alias</TableHead>
-                    <TableHead className="font-semibold">TAT (Days)</TableHead>
-                    <TableHead className="font-semibold">Price (₹)</TableHead>
+                    <TableHead className="font-semibold">Parent Test</TableHead>
+                    <TableHead className="font-semibold">Sub Parent</TableHead>
+                    
                     <TableHead className="font-semibold">Status</TableHead>
                     <TableHead className="font-semibold text-right">Actions</TableHead>
                   </TableRow>
@@ -513,8 +603,22 @@ export default function TestCatalogPage() {
                         </div>
                       </TableCell>
                       <TableCell>{test.alias || "-"}</TableCell>
-                      <TableCell>{test.tatDays}</TableCell>
-                      <TableCell>{test.price ? `₹${test.price}` : "-"}</TableCell>
+                      <TableCell>
+                        {test.parentTestName ? (
+                          <span className="text-sm">{test.parentTestName}</span>
+                        ) : (
+                          <span className="text-gray-400 text-sm">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {test.subParentName ? (
+                          <span className="text-sm">{test.subParentName}</span>
+                        ) : (
+                          <span className="text-gray-400 text-sm">-</span>
+                        )}
+                      </TableCell>
+                      
+                  
                       <TableCell>{getStatusBadge(test.isActive)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
@@ -663,25 +767,53 @@ export default function TestCatalogPage() {
             </div>
 
             <div>
-              <Label htmlFor="parentTestId">Parent Test ID</Label>
-              <Input
-                id="parentTestId"
-                value={formData.parentTestId}
-                onChange={e => setFormData(prev => ({ ...prev, parentTestId: e.target.value }))}
-                placeholder="Optional"
-                className="mt-1"
-              />
+              <Label htmlFor="parentTestId">Parent Test</Label>
+              <Select
+                value={formData.parentTestId || "none"}
+                onValueChange={(value) => handleParentSelect(value === "none" ? "" : value, 'parentTestId')}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select parent test">
+                    {formData.parentTestName || "None"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None (Root Test)</SelectItem>
+                  {parentOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.name} ({option.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.parentTestId && `Selected: ${formData.parentTestName}`}
+              </p>
             </div>
 
             <div>
               <Label htmlFor="subParentOf">Sub Parent Of</Label>
-              <Input
-                id="subParentOf"
-                value={formData.subParentOf}
-                onChange={e => setFormData(prev => ({ ...prev, subParentOf: e.target.value }))}
-                placeholder="Optional"
-                className="mt-1"
-              />
+              <Select
+                value={formData.subParentOf || "none"}
+                onValueChange={(value) => handleParentSelect(value === "none" ? "" : value, 'subParentOf')}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select sub-parent test">
+                    {formData.subParentName || "None"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {parentOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.name} ({option.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500 mt-1">
+                {formData.subParentOf && `Selected: ${formData.subParentName}`}
+              </p>
             </div>
 
             <div className="flex items-center justify-between">

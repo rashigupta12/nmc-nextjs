@@ -1,24 +1,11 @@
 /*eslint-disable @typescript-eslint/no-explicit-any */
-/*eslint-disable @typescript-eslint/no-unused-vars */
+// src/app/(protected)/dashboard/vendor/orders/page.tsx
 "use client";
 
-import { Badge } from "@/components/ui/badge";
+import React, { JSX } from "react";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -26,959 +13,624 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { useCurrentUser } from "@/hooks/auth";
-import { format } from "date-fns";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertCircle,
-  Barcode,
-  CalendarIcon,
-  CheckCircle,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Loader2,
+  Package,
+  Search,
+  Truck,
+  X,
+  Activity,
   ClipboardList,
   Clock,
   FileText,
+  User,
+  Barcode,
   FlaskConical,
-  Loader2,
-  Search,
-  Trash2,
-  Users,
+  CheckCircle,
+  XCircle,
+  Clock8,
+  Upload,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Swal from "sweetalert2";
+import { useRouter } from "next/navigation";
 
-interface Patient {
+type Order = {
   id: string;
+  orderNo: string;
+  sampleId: string | null;
   patientId: string;
-  patientFName: string;
-  patientLName: string;
-  age: string;
-  gender: string;
-  email: string;
-  mobileNo: string;
-  mrno?: string;
-}
+  patientFName?: string;
+  patientLName?: string;
+  vendorId: string;
+  vendorName?: string;
+  createdBy: string;
+  createdByName?: string;
+  addedBy: string;
+  shipmentStatus: string;
+  orderDate: string;
+  statusCode: string;
+  remark: string | null;
+  totalAmount: string | null;
+  currency: string;
+  paymentStatus: string;
+  createdAt: string;
+  updatedAt: string;
+  sample?: {
+    id: string;
+    sampleId: string;
+    testCatalogId: string;
+    testName?: string;
+    testCode?: string;
+    sampleType: string;
+    status: string;
+    tatDueAt: string | null;
+    subtests: string[];
+  };
+};
 
-interface Test {
-  id: string;
-  testCode: string;
-  testName: string;
-  alias: string | null;
-  description: string | null;
-  parentTestId: string | null;
-  subParentOf: string | null;
-  tatDays: number;
-  price: string | null;
-  isActive: boolean;
-}
-
-interface Subtest extends Test {
-  parentTestCode?: string;
-}
-
-interface OrderFormData {
-  patientId: string;
-  testCode: string;
-  subtests: string[];
-  kitBarcode: string;
-  customerSampleId: string;
-  sampleType: string;
-  collectionDate: Date;
-  collectionTime: string;
-  remark: string;
-}
-
-interface ValidationError {
-  field: string;
-  message: string;
-}
-
-export default function CreateOrderPage() {
-  const user = useCurrentUser();
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [tests, setTests] = useState<Test[]>([]);
-  const [subtests, setSubtests] = useState<Subtest[]>([]);
+export default function OrdersPage() {
+  const router = useRouter();
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searching, setSearching] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [selectedTest, setSelectedTest] = useState<Test | null>(null);
-  const [selectedSubtests, setSelectedSubtests] = useState<string[]>([]);
-  const [errors, setErrors] = useState<ValidationError[]>([]);
-
-  // Form data
-  const [formData, setFormData] = useState<OrderFormData>({
-    patientId: "",
-    testCode: "",
-    subtests: [],
-    kitBarcode: "",
-    customerSampleId: "",
-    sampleType: "SALIVA",
-    collectionDate: new Date(),
-    collectionTime: "12:00",
-    remark: "",
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+  // Filters state
+  const [filters, setFilters] = useState({
+    search: '',
+    shipmentStatus: 'ALL',
+    paymentStatus: 'ALL',
+    dateFrom: '',
+    dateTo: '',
   });
 
-  // Search patients
-  const searchPatients = async (query: string) => {
-    if (!query.trim() || query.length < 2) {
-      setPatients([]);
-      setShowPatientDropdown(false);
-      return;
-    }
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const itemsPerPage = 20;
 
-    setSearching(true);
+  // Fetch orders with filters
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (filters.shipmentStatus !== "ALL") params.set("shipmentStatus", filters.shipmentStatus);
+    if (filters.paymentStatus !== "ALL") params.set("paymentStatus", filters.paymentStatus);
+    if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+    if (filters.dateTo) params.set("dateTo", filters.dateTo);
+    params.set("limit", "100");
+
     try {
-      const res = await fetch(
-        `/api/patients/search?q=${encodeURIComponent(query)}`,
-      );
+      const res = await fetch(`/api/orders?${params.toString()}`);
       const data = await res.json();
 
-      if (res.ok && data.success) {
-        setPatients(data.patients || []);
-        setShowPatientDropdown(true);
-      } else {
-        setPatients([]);
-      }
-    } catch (error) {
-      console.error("Error searching patients:", error);
-      setPatients([]);
-    } finally {
-      setSearching(false);
-    }
-  };
+      // Map the data according to the actual API response structure
+      const mapped: Order[] = (data.orders || []).map((order: any) => ({
+        id: order.id,
+        orderNo: order.orderNo,
+        sampleId: order.sampleId,
+        patientId: order.patientId,
+        patientFName: order.patient?.patientFName,
+        patientLName: order.patient?.patientLName,
+        vendorId: order.vendorId,
+        vendorName: order.vendor?.name,
+        createdBy: order.createdBy,
+        createdByName: order.createdByUser?.name,
+        addedBy: order.addedBy,
+        shipmentStatus: order.shipmentStatus,
+        orderDate: order.orderDate,
+        statusCode: order.statusCode,
+        remark: order.remark,
+        totalAmount: order.totalAmount,
+        currency: order.currency,
+        paymentStatus: order.paymentStatus,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        sample: order.sample ? {
+          id: order.sample.id,
+          sampleId: order.sample.sampleId,
+          testCatalogId: order.sample.testCatalogId,
+          testName: order.sample.testName,
+          testCode: order.sample.testCode,
+          sampleType: order.sample.sampleType,
+          status: order.sample.status,
+          tatDueAt: order.sample.tatDueAt,
+          subtests: order.sample.subtests || [],
+        } : undefined,
+      }));
 
-  // Debounced search
-  useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      if (searchTerm) {
-        searchPatients(searchTerm);
-      } else {
-        setPatients([]);
-        setShowPatientDropdown(false);
-      }
-    }, 500);
-
-    return () => clearTimeout(debounceTimer);
-  }, [searchTerm]);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest(".patient-search-container")) {
-        setShowPatientDropdown(false);
-      }
-    };
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
-
-  // Fetch tests
-  const fetchTests = async () => {
-    try {
-      const res = await fetch(
-        "/api/test-catalog?isActive=true&limit=100",
-      );
-      const data = await res.json();
-      const allTests = data.tests || [];
-
-      // Separate parent tests and subtests
-      const parentTests = allTests.filter((test: Test) => !test.parentTestId);
-      const allSubtests = allTests.filter((test: Test) => test.parentTestId);
-
-      setTests(parentTests);
-      setSubtests(allSubtests);
-    } catch (error) {
-      console.error("Error fetching tests:", error);
-      Swal.fire("Error", "Failed to load tests", "error");
+      setOrders(mapped);
+      setTotalPages(Math.ceil(mapped.length / itemsPerPage));
+      setTotalRecords(mapped.length);
+    } catch (err) {
+      console.error("Failed to fetch orders:", err);
+      setMessage({ type: 'error', text: 'Failed to load orders' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
 
   useEffect(() => {
-    fetchTests();
-  }, []);
+    fetchOrders();
+  }, [fetchOrders]);
 
-  // Get subtests for selected test
-  const getSubtestsForTest = (testId: string) => {
-    return subtests.filter((subtest) => subtest.parentTestId === testId);
+  useEffect(() => {
+    setPage(1);
+  }, [filters]);
+
+  // Filter orders based on search
+  const filteredOrders = useMemo(() => {
+    let filtered = orders;
+    
+    if (filters.search) {
+      const term = filters.search.toLowerCase();
+      filtered = filtered.filter((order) => {
+        const patientName = `${order.patientFName || ''} ${order.patientLName || ''}`.toLowerCase();
+        return (
+          order.orderNo.toLowerCase().includes(term) ||
+          patientName.includes(term) ||
+          (order.sampleId && order.sampleId.toLowerCase().includes(term)) ||
+          (order.remark && order.remark.toLowerCase().includes(term))
+        );
+      });
+    }
+    
+    return filtered.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }, [orders, filters.search]);
+
+  // Paginate orders
+  const paginatedOrders = useMemo(() => {
+    const start = (page - 1) * itemsPerPage;
+    return filteredOrders.slice(start, start + itemsPerPage);
+  }, [filteredOrders, page]);
+
+  // Update total records and pages when filtered orders change
+  useEffect(() => {
+    setTotalRecords(filteredOrders.length);
+    setTotalPages(Math.ceil(filteredOrders.length / itemsPerPage));
+    if (page > Math.ceil(filteredOrders.length / itemsPerPage) && filteredOrders.length > 0) {
+      setPage(1);
+    }
+  }, [filteredOrders.length, page]);
+
+  const getShipmentStatusBadge = (status: string) => {
+    const config: Record<string, { label: string; className: string; icon: JSX.Element }> = {
+      Pending: { 
+        label: "Pending", 
+        className: "bg-yellow-100 text-yellow-800",
+        icon: <Clock8 className="h-3 w-3" />
+      },
+      CREATED: { 
+        label: "Created", 
+        className: "bg-gray-100 text-gray-800",
+        icon: <ClipboardList className="h-3 w-3" />
+      },
+      SHIPPED: { 
+        label: "Shipped", 
+        className: "bg-blue-100 text-blue-800",
+        icon: <Truck className="h-3 w-3" />
+      },
+      IN_TRANSIT: { 
+        label: "In Transit", 
+        className: "bg-purple-100 text-purple-800",
+        icon: <Package className="h-3 w-3" />
+      },
+      RECEIVED: { 
+        label: "Received", 
+        className: "bg-green-100 text-green-800",
+        icon: <CheckCircle className="h-3 w-3" />
+      },
+      PARTIALLY_RECEIVED: { 
+        label: "Partially Received", 
+        className: "bg-orange-100 text-orange-800",
+        icon: <Clock className="h-3 w-3" />
+      },
+    };
+    const defaultConfig = { 
+      label: status, 
+      className: "bg-gray-100 text-gray-800",
+      icon: <Activity className="h-3 w-3" />
+    };
+    const { label, className, icon } = config[status] || defaultConfig;
+    return (
+      <Badge className={`${className} flex items-center gap-1 w-fit`}>
+        {icon}
+        {label}
+      </Badge>
+    );
   };
 
-  // Handle test selection
-  const handleTestChange = (testId: string) => {
-    const test = tests.find((t) => t.id === testId);
-    setSelectedTest(test || null);
-    setSelectedSubtests([]);
-    setFormData({
-      ...formData,
-      testCode: test?.testCode || "",
-      subtests: [],
+  const getPaymentStatusBadge = (status: string) => {
+    const config: Record<string, { label: string; className: string; icon: JSX.Element }> = {
+      PENDING: { 
+        label: "Pending", 
+        className: "bg-yellow-100 text-yellow-800",
+        icon: <Clock className="h-3 w-3" />
+      },
+      PAID: { 
+        label: "Paid", 
+        className: "bg-green-100 text-green-800",
+        icon: <CheckCircle className="h-3 w-3" />
+      },
+      FAILED: { 
+        label: "Failed", 
+        className: "bg-red-100 text-red-800",
+        icon: <XCircle className="h-3 w-3" />
+      },
+      REFUNDED: { 
+        label: "Refunded", 
+        className: "bg-gray-100 text-gray-800",
+        icon: <XCircle className="h-3 w-3" />
+      },
+    };
+    const defaultConfig = { 
+      label: status, 
+      className: "bg-gray-100 text-gray-800",
+      icon: <Activity className="h-3 w-3" />
+    };
+    const { label, className, icon } = config[status] || defaultConfig;
+    return (
+      <Badge className={`${className} flex items-center gap-1 w-fit`}>
+        {icon}
+        {label}
+      </Badge>
+    );
+  };
+
+  const getStatusCodeBadge = (code: string) => {
+    const colors: Record<string, string> = {
+      O001: "bg-blue-100 text-blue-800",
+      O002: "bg-yellow-100 text-yellow-800",
+      O003: "bg-green-100 text-green-800",
+      O004: "bg-red-100 text-red-800",
+    };
+    return (
+      <Badge className={colors[code] || "bg-gray-100 text-gray-800"}>
+        {code}
+      </Badge>
+    );
+  };
+
+  const hasActiveFilters = filters.search !== '' || 
+    filters.shipmentStatus !== 'ALL' || 
+    filters.paymentStatus !== 'ALL' ||
+    filters.dateFrom !== '' ||
+    filters.dateTo !== '';
+
+ const handleUpload = (sampleId: string | null | undefined) => {
+  if (!sampleId) {
+    setMessage({ type: 'error', text: 'No sample ID available for this order' });
+    return;
+  }
+  router.push(`/dashboard/vendor/samples/${sampleId}`);
+};
+
+  // Helper function to format date
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
     });
   };
 
-  // Handle subtest selection
-  const handleSubtestToggle = (subtestId: string) => {
-    setSelectedSubtests((prev) => {
-      const newSubtests = prev.includes(subtestId)
-        ? prev.filter((id) => id !== subtestId)
-        : [...prev, subtestId];
-
-      setFormData({
-        ...formData,
-        subtests: newSubtests,
-      });
-
-      return newSubtests;
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
-
-  // Validate form
-  const validateForm = (): boolean => {
-    const newErrors: ValidationError[] = [];
-
-    if (!selectedPatient) {
-      newErrors.push({ field: "patient", message: "Please select a patient" });
-    }
-
-    if (!selectedTest) {
-      newErrors.push({ field: "test", message: "Please select a test" });
-    }
-
-    if (!formData.collectionDate) {
-      newErrors.push({
-        field: "collectionDate",
-        message: "Please select collection date",
-      });
-    }
-
-    if (!formData.collectionTime) {
-      newErrors.push({
-        field: "collectionTime",
-        message: "Please select collection time",
-      });
-    }
-
-    setErrors(newErrors);
-    return newErrors.length === 0;
-  };
-
-  // Submit order
-  const handleSubmit = async () => {
-    if (!validateForm()) {
-      Swal.fire("Validation Error", "Please fill all required fields", "error");
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      const orderData = {
-        patientId: selectedPatient?.patientId,
-        patientName: `${selectedPatient?.patientFName} ${selectedPatient?.patientLName}`,
-        test: selectedTest?.testCode,
-        subtests: selectedSubtests
-          .map((id) => {
-            const subtest = subtests.find((s) => s.id === id);
-            return subtest?.testCode;
-          })
-          .filter(Boolean),
-        kitBarcode: formData.kitBarcode,
-        customerSampleId: formData.customerSampleId,
-        sampleType: formData.sampleType,
-        collectionDate: format(formData.collectionDate, "yyyy-MM-dd"),
-        collectionTime: formData.collectionTime + ":00",
-        addedBy: user?.email || user?.name || "system",
-        vendorId: "ece454b1-7035-421d-9b35-1f5253d2ead9",
-        createdBy: user?.id,
-        remark: formData.remark,
-      };
-
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(orderData),
-      });
-
-      const result = await res.json();
-
-      if (res.ok && result.Success === "true") {
-        Swal.fire({
-          title: "Order Created Successfully!",
-          html: `
-            <div class="text-left space-y-2">
-              <div class="bg-gray-50 p-3 rounded-lg">
-                <p class="font-semibold text-blue-600">Order No: ${result.Result.order.orderNo}</p>
-                <p class="text-sm text-gray-600 mt-1">Sample ID: ${result.Result.sample.sampleId}</p>
-              </div>
-              <div class="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span class="text-gray-600">Patient:</span>
-                  <p class="font-medium">${selectedPatient?.patientFName} ${selectedPatient?.patientLName}</p>
-                </div>
-                <div>
-                  <span class="text-gray-600">Test:</span>
-                  <p class="font-medium">${selectedTest?.testName}</p>
-                </div>
-                <div>
-                  <span class="text-gray-600">Collection Date:</span>
-                  <p>${format(formData.collectionDate, "PPP")}</p>
-                </div>
-                <div>
-                  <span class="text-gray-600">TAT Date:</span>
-                  <p>${result.Result.sample.tatDate}</p>
-                </div>
-              </div>
-            </div>
-          `,
-          icon: "success",
-          confirmButtonText: "Print Order",
-          showCancelButton: true,
-          cancelButtonText: "Create Another",
-          showCloseButton: true,
-        }).then((swalResult) => {
-          if (swalResult.isConfirmed) {
-            // Print order
-            window.open(
-              `/orders/${result.Result.order.orderNo}/print`,
-              "_blank",
-            );
-          }
-          resetForm();
-        });
-      } else {
-        throw new Error(result.Error || "Failed to create order");
-      }
-    } catch (error: any) {
-      console.error("Error creating order:", error);
-      Swal.fire("Error", error.message || "Failed to create order", "error");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Reset form
-  const resetForm = () => {
-    setSelectedPatient(null);
-    setSelectedTest(null);
-    setSelectedSubtests([]);
-    setSearchTerm("");
-    setPatients([]);
-    setFormData({
-      patientId: "",
-      testCode: "",
-      subtests: [],
-      kitBarcode: "",
-      customerSampleId: "",
-      sampleType: "SALIVA",
-      collectionDate: new Date(),
-      collectionTime: "12:00",
-      remark: "",
-    });
-    setErrors([]);
-    setShowPatientDropdown(false);
-  };
-
-  const sampleTypes = [
-    { value: "SALIVA", label: "Saliva", icon: "💧" },
-    { value: "BLOOD", label: "Blood", icon: "🩸" },
-    { value: "TISSUE", label: "Tissue", icon: "🔬" },
-  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 w-full p-6">
-      <div className="mx-auto max-w-7xl">
+    <div className="min-h-screen bg-gray-50/60">
+      <div className="mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-                Create New Order
-              </h1>
-              <p className="text-gray-600">
-                Create a new test order by selecting patient and test details
-              </p>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Order Management</h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Manage orders, track shipments, and monitor test progress
+            </p>
+          </div>
+          <Button asChild className="gap-2 bg-blue-600 hover:bg-blue-700">
+            <Link href="/dashboard/vendor/orders/create">
+              <ClipboardList className="h-4 w-4" /> Create Order
+            </Link>
+          </Button>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-5 shadow-sm">
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="flex-1 min-w-[200px]">
+              <Label className="text-xs text-gray-500">Search</Label>
+              <div className="relative mt-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                <Input
+                  placeholder="Order ID, Patient name, Sample ID..."
+                  value={filters.search}
+                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                  className="pl-8 h-9 text-sm"
+                />
+              </div>
             </div>
-            <Button
-              variant="outline"
-              onClick={resetForm}
-              className="border-gray-300 hover:bg-gray-100"
-            >
-              Reset Form
-            </Button>
+            
+            {/* <div className="w-44">
+              <Label className="text-xs text-gray-500">Shipment Status</Label>
+              <Select 
+                value={filters.shipmentStatus} 
+                onValueChange={(v) => setFilters(prev => ({ ...prev, shipmentStatus: v }))}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Shipment Status</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="CREATED">Created</SelectItem>
+                  <SelectItem value="SHIPPED">Shipped</SelectItem>
+                  <SelectItem value="IN_TRANSIT">In Transit</SelectItem>
+                  <SelectItem value="RECEIVED">Received</SelectItem>
+                  <SelectItem value="PARTIALLY_RECEIVED">Partially Received</SelectItem>
+                </SelectContent>
+              </Select>
+            </div> */}
+
+            {/* <div className="w-40">
+              <Label className="text-xs text-gray-500">Payment Status</Label>
+              <Select 
+                value={filters.paymentStatus} 
+                onValueChange={(v) => setFilters(prev => ({ ...prev, paymentStatus: v }))}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Payment Status</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="PAID">Paid</SelectItem>
+                  <SelectItem value="FAILED">Failed</SelectItem>
+                  <SelectItem value="REFUNDED">Refunded</SelectItem>
+                </SelectContent>
+              </Select>
+            </div> */}
+
+            <div className="w-40">
+              <Label className="text-xs text-gray-500">From Date</Label>
+              <Input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                className="h-9 text-sm"
+              />
+            </div>
+
+            <div className="w-40">
+              <Label className="text-xs text-gray-500">To Date</Label>
+              <Input
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                className="h-9 text-sm"
+              />
+            </div>
+
+            {hasActiveFilters && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFilters({ 
+                  search: '', 
+                  shipmentStatus: 'ALL', 
+                  paymentStatus: 'ALL',
+                  dateFrom: '',
+                  dateTo: '',
+                })}
+                className="h-9 px-3"
+              >
+                <X className="h-3.5 w-3.5 mr-1" /> Clear
+              </Button>
+            )}
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Main Form - 2 columns */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Patient Selection Card */}
-            <Card className="shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-t-lg">
-                <CardTitle className="flex items-center gap-2 text-blue-900">
-                  <Users className="h-5 w-5 text-blue-600" />
-                  Patient Information
-                </CardTitle>
-                <CardDescription>
-                  Search and select a patient from the system
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6">
-                {selectedPatient ? (
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-2 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-lg text-gray-900">
-                            {selectedPatient.patientFName}{" "}
-                            {selectedPatient.patientLName}
-                          </h3>
-                          <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-                            {selectedPatient.patientId}
-                          </Badge>
-                          {selectedPatient.mrno && (
-                            <Badge variant="outline" className="text-gray-600">
-                              MR No: {selectedPatient.mrno}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                          <div>
-                            <span className="text-gray-600">Age:</span>
-                            <p className="font-medium">{selectedPatient.age}</p>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Gender:</span>
-                            <p className="font-medium">
-                              {selectedPatient.gender}
-                            </p>
-                          </div>
-                          <div className="col-span-2">
-                            <span className="text-gray-600">Email:</span>
-                            <p className="font-medium truncate">
-                              {selectedPatient.email}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Mobile:</span>
-                            <p className="font-medium">
-                              {selectedPatient.mobileNo}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedPatient(null)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4 patient-search-container relative">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                      <Input
-                        placeholder="Search by Patient ID, Name, Email, or Mobile Number..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onFocus={() =>
-                          searchTerm &&
-                          patients.length > 0 &&
-                          setShowPatientDropdown(true)
-                        }
-                        className="pl-10"
-                        autoComplete="off"
-                      />
-                      {searching && (
-                        <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
-                      )}
-                    </div>
+        {/* Stats */}
+        <div className="flex justify-between items-center mb-3">
+          <p className="text-xs text-gray-400">
+            {loading ? 'Loading...' : `${totalRecords} order(s)`}
+          </p>
+          {loading && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
+        </div>
 
-                    {showPatientDropdown && patients.length > 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-80 overflow-y-auto">
-                        {patients.map((patient) => (
-                          <div
-                            key={patient.id}
-                            className="p-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 cursor-pointer transition-all border-b last:border-b-0"
-                            onClick={() => {
-                              setSelectedPatient(patient);
-                              setSearchTerm("");
-                              setPatients([]);
-                              setShowPatientDropdown(false);
-                            }}
-                          >
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <div className="font-medium text-gray-900">
-                                  {patient.patientFName} {patient.patientLName}
-                                </div>
-                                <div className="text-sm text-gray-600 mt-1">
-                                  <span className="inline-block mr-3">
-                                    ID: {patient.patientId}
-                                  </span>
-                                  <span className="inline-block mr-3">
-                                    Age: {patient.age}
-                                  </span>
-                                  <span>Gender: {patient.gender}</span>
-                                </div>
-                                <div className="text-xs text-gray-500 mt-1">
-                                  {patient.email} • {patient.mobileNo}
-                                </div>
+        {/* Table */}
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-300" />
+          </div>
+        ) : paginatedOrders.length === 0 ? (
+          <div className="text-center py-20 border rounded-lg bg-white">
+            <ClipboardList className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500">
+              {hasActiveFilters ? 'No orders match your filters' : 'No orders found. Create your first order to get started!'}
+            </p>
+            {!hasActiveFilters && (
+              <Button asChild className="mt-4" size="sm">
+                <Link href="/dashboard/vendor/orders/create">
+                  <ClipboardList className="h-4 w-4 mr-1" /> Create Order
+                </Link>
+              </Button>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50">
+                    <TableHead className="font-semibold">Order Details</TableHead>
+                    <TableHead className="font-semibold">Patient Info</TableHead>
+                    <TableHead className="font-semibold">Test & Sample</TableHead>
+                    <TableHead className="font-semibold">Status</TableHead>
+                    {/* <TableHead className="font-semibold">Payment</TableHead> */}
+                    <TableHead className="font-semibold text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedOrders.map((order) => {
+                    const patientName = `${order.patientFName || ''} ${order.patientLName || ''}`.trim() || 'N/A';
+                    const mainTest = order.sample;
+                    return (
+                      <TableRow key={order.id} className="hover:bg-gray-50">
+                        <TableCell>
+                          <div>
+                            <div className="font-medium text-gray-900 flex items-center gap-2">
+                              <span className="text-blue-600">{order.orderNo}</span>
+                              
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1 space-x-2">
+                              <span>Created: {formatDate(order.createdAt)}</span>
+                              
+                            </div>
+                            {order.remark && (
+                              <div className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">
+                                Note: {order.remark}
                               </div>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="text-blue-600"
-                              >
-                                Select
-                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <User className="h-3.5 w-3.5 text-gray-400" />
+                              <span className="font-medium text-gray-900">{patientName}</span>
+                            </div>
+                            {order.sampleId && (
+                              <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                                <Barcode className="h-3 w-3" />
+                                <span> {order.sample?.sampleId || order.sampleId}</span>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {mainTest ? (
+                            <div>
+                              <div className="flex items-center gap-2 text-sm">
+                                <FlaskConical className="h-3.5 w-3.5 text-gray-400" />
+                                <span className="font-medium">{mainTest.testName || mainTest.testCode || 'N/A'}</span>
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                Type: {mainTest.sampleType}
+                              </div>
+                              {mainTest.subtests && mainTest.subtests.length > 0 && (
+                                <div className="text-xs text-gray-400 mt-1">
+                                  +{mainTest.subtests.length} subtest(s)
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-400">No test assigned</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-2">
+                            {getShipmentStatusBadge(order.shipmentStatus)}
+                            <div className="text-xs text-gray-400">
+                              Order Date: {formatDate(order.orderDate)}
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {errors.some((e) => e.field === "patient") && (
-                      <p className="text-sm text-red-600 flex items-center gap-1">
-                        <AlertCircle className="h-4 w-4" />
-                        Please select a patient
-                      </p>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Test Selection Card */}
-            <Card className="shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-lg">
-                <CardTitle className="flex items-center gap-2 text-green-900">
-                  <ClipboardList className="h-5 w-5 text-green-600" />
-                  Test Selection
-                </CardTitle>
-                <CardDescription>
-                  Select the primary test and any required subtests
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 pt-6">
-                <div>
-                  <Label className="text-gray-700 font-semibold">
-                    Select Test *
-                  </Label>
-                  <Select
-                    onValueChange={handleTestChange}
-                    value={selectedTest?.id}
-                  >
-                    <SelectTrigger className="mt-1.5">
-                      <SelectValue placeholder="Choose a test from the catalog..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tests.map((test) => (
-                        <SelectItem key={test.id} value={test.id}>
-                          <div className="flex flex-col">
-                            <span className="font-medium">{test.testName}</span>
-                            <span className="text-xs text-gray-500">
-                              Code: {test.testCode} | TAT: {test.tatDays} days
-                              {test.price &&
-                                ` | Price: ₹${parseFloat(test.price).toLocaleString()}`}
-                            </span>
+                        </TableCell>
+                        {/* <TableCell>
+                          <div className="space-y-2">
+                            {getPaymentStatusBadge(order.paymentStatus)}
+                            {order.totalAmount && (
+                              <div className="text-sm font-medium text-gray-900">
+                                {order.currency} {parseFloat(order.totalAmount).toLocaleString()}
+                              </div>
+                            )}
                           </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.some((e) => e.field === "test") && (
-                    <p className="text-sm text-red-600 mt-1 flex items-center gap-1">
-                      <AlertCircle className="h-4 w-4" />
-                      Please select a test
-                    </p>
-                  )}
-                </div>
-
-                {/* Subtests Section */}
-                {selectedTest &&
-                  getSubtestsForTest(selectedTest.id).length > 0 && (
-                    <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 space-y-3 bg-gray-50/50">
-                      <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                        <FlaskConical className="h-4 w-4 text-purple-600" />
-                        Subtests (Optional - Select if applicable)
-                      </Label>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {getSubtestsForTest(selectedTest.id).map((subtest) => (
-                          <label
-                            key={subtest.id}
-                            className="flex items-center space-x-2 p-2 rounded hover:bg-white cursor-pointer transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedSubtests.includes(subtest.id)}
-                              onChange={() => handleSubtestToggle(subtest.id)}
-                              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                            />
-                            <span className="text-sm">
-                              {subtest.testName}
-                              <span className="text-xs text-gray-500 ml-1">
-                                ({subtest.testCode})
-                              </span>
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                {/* Test Details Summary */}
-                {selectedTest && (
-                  <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4">
-                    <h4 className="font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-blue-600" />
-                      Test Details
-                    </h4>
-                    <div className="space-y-1 text-sm">
-                      <p>
-                        <span className="text-gray-600">Description:</span>{" "}
-                        {selectedTest.description || "No description available"}
-                      </p>
-                      <p>
-                        <span className="text-gray-600">Turnaround Time:</span>{" "}
-                        <span className="font-medium">
-                          {selectedTest.tatDays} days
-                        </span>
-                      </p>
-                      {selectedTest.price && (
-                        <p>
-                          <span className="text-gray-600">Price:</span>{" "}
-                          <span className="font-medium text-green-600">
-                            ₹{parseFloat(selectedTest.price).toLocaleString()}
-                          </span>
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Sample Information Card */}
-            <Card className="shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-lg">
-                <CardTitle className="flex items-center gap-2 text-purple-900">
-                  <FlaskConical className="h-5 w-5 text-purple-600" />
-                  Sample Information
-                </CardTitle>
-                <CardDescription>
-                  Provide sample collection details
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 pt-6">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="flex items-center gap-2 text-gray-700">
-                      <Barcode className="h-4 w-4" />
-                      Kit Barcode
-                    </Label>
-                    <Input
-                      placeholder="Scan or enter kit barcode"
-                      value={formData.kitBarcode}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          kitBarcode: e.target.value.toUpperCase(),
-                        })
-                      }
-                      className="mt-1.5 font-mono"
-                    />
-                  </div>
-                  <div>
-                    <Label>Customer Sample ID</Label>
-                    <Input
-                      placeholder="Customer reference ID"
-                      value={formData.customerSampleId}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          customerSampleId: e.target.value,
-                        })
-                      }
-                      className="mt-1.5"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Sample Type *</Label>
-                    <Select
-                      value={formData.sampleType}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, sampleType: value })
-                      }
-                    >
-                      <SelectTrigger className="mt-1.5">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sampleTypes.map((type) => (
-                          <SelectItem key={type.value} value={type.value}>
-                            <span className="flex items-center gap-2">
-                              <span>{type.icon}</span>
-                              <span>{type.label}</span>
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="flex items-center gap-2">
-                      <CalendarIcon className="h-4 w-4" />
-                      Collection Date *
-                    </Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={`w-full justify-start text-left font-normal mt-1.5 ${
-                            !formData.collectionDate && "text-muted-foreground"
-                          }`}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {formData.collectionDate ? (
-                            format(formData.collectionDate, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={formData.collectionDate}
-                          onSelect={(date) =>
-                            setFormData({
-                              ...formData,
-                              collectionDate: date || new Date(),
-                            })
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    {errors.some((e) => e.field === "collectionDate") && (
-                      <p className="text-sm text-red-600 mt-1">
-                        Collection date is required
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label className="flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Collection Time *
-                    </Label>
-                    <Input
-                      type="time"
-                      value={formData.collectionTime}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          collectionTime: e.target.value,
-                        })
-                      }
-                      className="mt-1.5"
-                    />
-                    {errors.some((e) => e.field === "collectionTime") && (
-                      <p className="text-sm text-red-600 mt-1">
-                        Collection time is required
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <Label>Remarks (Optional)</Label>
-                  <Textarea
-                    placeholder="Any additional notes or special instructions..."
-                    value={formData.remark}
-                    onChange={(e) =>
-                      setFormData({ ...formData, remark: e.target.value })
-                    }
-                    rows={3}
-                    className="mt-1.5"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Summary Panel - 1 column */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-6">
-              <Card className="shadow-lg border-t-4 border-t-blue-500">
-                <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100">
-                  <CardTitle className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    Order Summary
-                  </CardTitle>
-                  <CardDescription>
-                    Review all details before submitting
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4 pt-6">
-                  {/* Patient Summary */}
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-sm text-gray-500 uppercase tracking-wider">
-                      Patient Details
-                    </h4>
-                    {selectedPatient ? (
-                      <div className="bg-gray-50 rounded-lg p-3 space-y-1">
-                        <p className="font-medium text-gray-900">
-                          {selectedPatient.patientFName}{" "}
-                          {selectedPatient.patientLName}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          ID: {selectedPatient.patientId}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          Age: {selectedPatient.age} | Gender:{" "}
-                          {selectedPatient.gender}
-                        </p>
-                        <p className="text-xs text-gray-600 truncate">
-                          {selectedPatient.email}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="text-center py-4 text-gray-500 bg-gray-50 rounded-lg">
-                        <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">No patient selected</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Test Summary */}
-                  {selectedTest && (
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-sm text-gray-500 uppercase tracking-wider">
-                        Test Details
-                      </h4>
-                      <div className="bg-gray-50 rounded-lg p-3 space-y-1">
-                        <p className="font-medium text-gray-900">
-                          {selectedTest.testName}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          Code: {selectedTest.testCode}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          TAT: {selectedTest.tatDays} days
-                        </p>
-                        {selectedTest.price && (
-                          <p className="text-xs font-medium text-green-600">
-                            Price: ₹
-                            {parseFloat(selectedTest.price).toLocaleString()}
-                          </p>
-                        )}
-                        {selectedSubtests.length > 0 && (
-                          <>
-                            <p className="text-xs text-gray-600 mt-2 font-medium">
-                              Subtests:
-                            </p>
-                            <ul className="text-xs space-y-1 mt-1">
-                              {selectedSubtests.map((id) => {
-                                const subtest = subtests.find(
-                                  (s) => s.id === id,
-                                );
-                                return subtest ? (
-                                  <li
-                                    key={id}
-                                    className="text-gray-600 flex items-center gap-1"
-                                  >
-                                    <span>•</span> {subtest.testName}
-                                  </li>
-                                ) : null;
-                              })}
-                            </ul>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Sample Summary */}
-                  <div className="space-y-2">
-                    <h4 className="font-semibold text-sm text-gray-500 uppercase tracking-wider">
-                      Sample Details
-                    </h4>
-                    <div className="bg-gray-50 rounded-lg p-3 space-y-1">
-                      <p className="text-sm">
-                        <span className="text-gray-600">Type:</span>{" "}
-                        <span className="font-medium">
-                          {formData.sampleType}
-                        </span>
-                      </p>
-                      <p className="text-sm">
-                        <span className="text-gray-600">Collection:</span>{" "}
-                        {formData.collectionDate
-                          ? format(formData.collectionDate, "PPP")
-                          : "-"}{" "}
-                        at {formData.collectionTime}
-                      </p>
-                      {formData.kitBarcode && (
-                        <p className="text-sm">
-                          <span className="text-gray-600">Kit Barcode:</span>{" "}
-                          <code className="text-xs">{formData.kitBarcode}</code>
-                        </p>
-                      )}
-                      {formData.customerSampleId && (
-                        <p className="text-sm">
-                          <span className="text-gray-600">Customer ID:</span>{" "}
-                          {formData.customerSampleId}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Submit Button */}
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={submitting || !selectedPatient || !selectedTest}
-                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg"
-                    size="lg"
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Creating Order...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Create Order
-                      </>
-                    )}
-                  </Button>
-
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                    <p className="text-xs text-yellow-800 text-center">
-                      ⚠️ By creating this order, you confirm that all
-                      information is accurate and patient consent has been
-                      obtained.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+                        </TableCell> */}
+                     <TableCell className="text-right">
+  <div className="flex justify-end gap-2">
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => handleUpload(order.sample?.sampleId ?? null)}
+      className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-700"
+      title="Upload Sample"
+      disabled={!order.sample?.sampleId}
+    >
+      <Upload className="h-4 w-4" />
+    </Button>
+  </div>
+</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
-          </div>
-        </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center gap-2 mt-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" /> Previous
+                </Button>
+                <span className="text-sm text-gray-500">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                >
+                  Next <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </>
+        )}
       </div>
+
+      {/* Toast Message */}
+      {message && (
+        <div className={`fixed bottom-4 right-4 flex items-center gap-2 px-4 py-2 rounded-lg shadow-lg text-sm text-white z-50 ${
+          message.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+        }`}>
+          <Activity className="h-4 w-4" />
+          {message.text}
+          <button onClick={() => setMessage(null)} className="ml-2 opacity-70 hover:opacity-100">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

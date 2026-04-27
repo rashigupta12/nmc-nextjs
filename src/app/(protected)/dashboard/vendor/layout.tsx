@@ -206,10 +206,10 @@ export default function VendorLayout({
                   isOrdersOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
-                <Link href="/dashboard/vendor/orders/list">
+                <Link href="/dashboard/vendor/orders">
                   <button
                     className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                      pathname === "/dashboard/vendor/orders/list"
+                      pathname === "/dashboard/vendor/orders"
                         ? "bg-blue-50 text-blue-700"
                         : "text-gray-600 hover:bg-gray-100"
                     }`}
