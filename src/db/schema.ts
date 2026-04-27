@@ -371,7 +371,7 @@ export const VendorEthnicityMasterTable = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey().notNull(),
     ethnicity: text("ethnicity").notNull(),
-    vendorId: uuid("vendor_id").notNull(),
+    vendorId: uuid("vendor_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -391,7 +391,7 @@ export const VendorHospitalMasterTable = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey().notNull(),
     hospital: text("hospital").notNull(),
-    vendorId: uuid("vendor_id").notNull(),
+    vendorId: uuid("vendor_id"),
     address: text("address").notNull(),
     contactNo: text("contact_no").notNull(),
     isActive: boolean("is_active").default(true).notNull(),
@@ -473,7 +473,7 @@ export const PatientsTable = pgTable(
     doctorFName: text("doctor_f_name").notNull(),
     doctorLName: text("doctor_l_name"),
     hospitalName: text("hospital_name").notNull(),
-    clinic: text("clinic").notNull(),
+    clinic: text("clinic"),
     docMobileNo: text("doc_mobile_no"),
     docEmail: text("doc_email"),
 
@@ -482,7 +482,7 @@ export const PatientsTable = pgTable(
     patientMName: text("patient_m_name"),
     patientLName: text("patient_l_name").notNull(),
     gender: GenderEnum("gender").notNull(),
-    dob: text("dob").notNull(),
+    dob: text("dob"),
     age: text("age").notNull(),
     height: text("height").notNull(),
     weight: text("weight").notNull(),

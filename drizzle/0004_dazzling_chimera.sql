@@ -1,0 +1,1 @@
+ALTER TABLE "vendor_ethnicity_master" ALTER COLUMN "vendor_id" DROP NOT NULL;
