@@ -14,7 +14,7 @@ import { sendEmail } from "@/lib/mailer";
 async function generateVendorCode(): Promise<string> {
   const vendors = await db.select().from(VendorsTable);
   const nextNumber = (vendors.length + 1).toString().padStart(6, "0");
-  return `VEN${nextNumber}`;
+  return `BUS-P${nextNumber}`;
 }
 
 async function generateLoginUrl(companyName: string): Promise<string> {

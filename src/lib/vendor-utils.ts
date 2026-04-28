@@ -6,7 +6,7 @@ import { count } from "drizzle-orm";
 export async function generateVendorCode(): Promise<string> {
   const vendorCount = await db.select({ count: count() }).from(VendorsTable);
   const nextNumber = (vendorCount[0].count + 1).toString().padStart(6, '0');
-  return `VEN${nextNumber}`;
+  return `BUSI-P${nextNumber}`;
 }
 
 export async function generateLoginUrl(companyName: string): Promise<string> {

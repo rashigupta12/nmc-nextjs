@@ -4,7 +4,9 @@
 
 ## 🏰 Business Partner — Core Entity
 
+
 * [x] 🔴 Rename "Vendor" to "Business Partner" across entire application
+* [x] 🔴 Vendor ID Update to Business Partner.
 * [x] 🔴 Business Partner form fields: Company Name *(mandatory)*, Address *(mandatory)*
 * [ ] 🔴 Active / Inactive status flag on Business Partner
 * [ ] 🔴 Replace Delete with Deactivate — no hard deletes from admin panel
