@@ -1,5 +1,5 @@
 /*eslint-disable @typescript-eslint/no-explicit-any */
-// src/app/(protected)/dashboard/vendor/orders/page.tsx
+// src/app/(protected)/vendor/dashboard/orders/page.tsx
 "use client";
 
 import React, { JSX } from "react";
@@ -319,7 +319,7 @@ export default function OrdersPage() {
     setMessage({ type: 'error', text: 'No sample ID available for this order' });
     return;
   }
-  router.push(`/dashboard/vendor/samples/${sampleId}`);
+  router.push(`/vendor/dashboard/samples/${sampleId}`);
 };
 
   // Helper function to format date
@@ -353,7 +353,7 @@ export default function OrdersPage() {
             </p>
           </div>
           <Button asChild className="gap-2 bg-blue-600 hover:bg-blue-700">
-            <Link href="/dashboard/vendor/orders/create">
+            <Link href="/vendor/dashboard/orders/create">
               <ClipboardList className="h-4 w-4" /> Create Order
             </Link>
           </Button>
@@ -475,7 +475,7 @@ export default function OrdersPage() {
             </p>
             {!hasActiveFilters && (
               <Button asChild className="mt-4" size="sm">
-                <Link href="/dashboard/vendor/orders/create">
+                <Link href="/vendor/dashboard/orders/create">
                   <ClipboardList className="h-4 w-4 mr-1" /> Create Order
                 </Link>
               </Button>

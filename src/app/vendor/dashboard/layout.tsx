@@ -1,4 +1,4 @@
-// src/app/(protected)/dashboard/vendor/layout.tsx
+// src/app/(protected)/vendor/dashboard/layout.tsx
 "use client";
 
 import React, { useState } from "react";
@@ -44,18 +44,18 @@ export default function VendorLayout({
   };
 
   const isActive = (href: string) => {
-    if (href === "/dashboard/vendor") {
+    if (href === "/vendor/dashboard") {
       return pathname === href;
     }
     return pathname.startsWith(href);
   };
 
   const isPatientsActive = () => {
-    return pathname.startsWith("/dashboard/vendor/patients");
+    return pathname.startsWith("/vendor/dashboard/patients");
   };
 
   const isOrdersActive = () => {
-    return pathname.startsWith("/dashboard/vendor/orders");
+    return pathname.startsWith("/vendor/dashboard/orders");
   };
 
   return (
@@ -89,7 +89,7 @@ export default function VendorLayout({
             <PopoverContent className="w-56" align="end">
               <div className="space-y-1">
                 <button 
-                  onClick={() => router.push("/dashboard/vendor/profile")}
+                  onClick={() => router.push("/vendor/dashboard/profile")}
                   className="w-full flex items-center gap-2 rounded-lg p-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                 >
                   <Settings className="h-4 w-4" />
@@ -113,15 +113,15 @@ export default function VendorLayout({
         <aside className="w-64 bg-white border-r min-h-[calc(100vh-64px)] p-4 sticky top-[65px] overflow-y-auto">
           <nav className="space-y-1">
             {/* Dashboard */}
-            <Link href="/dashboard/vendor">
+            <Link href="/vendor/dashboard">
               <button
                 className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                  pathname === "/dashboard/vendor"
+                  pathname === "/vendor/dashboard"
                     ? "bg-blue-50 text-blue-700"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <Home className={`h-4 w-4 ${pathname === "/dashboard/vendor" ? "text-blue-700" : ""}`} />
+                <Home className={`h-4 w-4 ${pathname === "/vendor/dashboard" ? "text-blue-700" : ""}`} />
                 <span className="text-sm font-medium">Dashboard</span>
               </button>
             </Link>
@@ -152,10 +152,10 @@ export default function VendorLayout({
                   isPatientsOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
-                <Link href="/dashboard/vendor/patients">
+                <Link href="/vendor/dashboard/patients">
                   <button
                     className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                      pathname === "/dashboard/vendor/patients"
+                      pathname === "/vendor/dashboard/patients"
                         ? "bg-blue-50 text-blue-700"
                         : "text-gray-600 hover:bg-gray-100"
                     }`}
@@ -165,10 +165,10 @@ export default function VendorLayout({
                   </button>
                 </Link>
 
-                <Link href="/dashboard/vendor/patients/create">
+                <Link href="/vendor/dashboard/patients/create">
                   <button
                     className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                      pathname === "/dashboard/vendor/patients/create"
+                      pathname === "/vendor/dashboard/patients/create"
                         ? "bg-blue-50 text-blue-700"
                         : "text-gray-600 hover:bg-gray-100"
                     }`}
@@ -206,10 +206,10 @@ export default function VendorLayout({
                   isOrdersOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
-                <Link href="/dashboard/vendor/orders">
+                <Link href="/vendor/dashboard/orders">
                   <button
                     className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                      pathname === "/dashboard/vendor/orders"
+                      pathname === "/vendor/dashboard/orders"
                         ? "bg-blue-50 text-blue-700"
                         : "text-gray-600 hover:bg-gray-100"
                     }`}
@@ -219,10 +219,10 @@ export default function VendorLayout({
                   </button>
                 </Link>
 
-                <Link href="/dashboard/vendor/orders/create">
+                <Link href="/vendor/dashboard/orders/create">
                   <button
                     className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                      pathname === "/dashboard/vendor/orders/create"
+                      pathname === "/vendor/dashboard/orders/create"
                         ? "bg-blue-50 text-blue-700"
                         : "text-gray-600 hover:bg-gray-100"
                     }`}
@@ -235,54 +235,54 @@ export default function VendorLayout({
             </div>
 
             {/* Additional vendor sections (matching admin style) */}
-            <Link href="/dashboard/vendor/shipments">
+            <Link href="/vendor/dashboard/shipments">
               <button
                 className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                  pathname.startsWith("/dashboard/vendor/shipments")
+                  pathname.startsWith("/vendor/dashboard/shipments")
                     ? "bg-blue-50 text-blue-700"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <Truck className={`h-4 w-4 ${pathname.startsWith("/dashboard/vendor/shipments") ? "text-blue-700" : ""}`} />
+                <Truck className={`h-4 w-4 ${pathname.startsWith("/vendor/dashboard/shipments") ? "text-blue-700" : ""}`} />
                 <span className="text-sm font-medium">Shipments ⚠️</span>
               </button>
             </Link>
 
-            <Link href="/dashboard/vendor/reports">
+            <Link href="/vendor/dashboard/reports">
               <button
                 className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                  pathname.startsWith("/dashboard/vendor/reports")
+                  pathname.startsWith("/vendor/dashboard/reports")
                     ? "bg-blue-50 text-blue-700"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <FileText className={`h-4 w-4 ${pathname.startsWith("/dashboard/vendor/reports") ? "text-blue-700" : ""}`} />
+                <FileText className={`h-4 w-4 ${pathname.startsWith("/vendor/dashboard/reports") ? "text-blue-700" : ""}`} />
                 <span className="text-sm font-medium">Reports ⚠️</span>
               </button>
             </Link>
 
-            <Link href="/dashboard/vendor/analytics">
+            <Link href="/vendor/dashboard/analytics">
               <button
                 className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                  pathname.startsWith("/dashboard/vendor/analytics")
+                  pathname.startsWith("/vendor/dashboard/analytics")
                     ? "bg-blue-50 text-blue-700"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <BarChart3 className={`h-4 w-4 ${pathname.startsWith("/dashboard/vendor/analytics") ? "text-blue-700" : ""}`} />
+                <BarChart3 className={`h-4 w-4 ${pathname.startsWith("/vendor/dashboard/analytics") ? "text-blue-700" : ""}`} />
                 <span className="text-sm font-medium">Analytics ⚠️</span>
               </button>
             </Link>
 
-            <Link href="/dashboard/vendor/helpdesk">
+            <Link href="/vendor/dashboard/helpdesk">
               <button
                 className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                  pathname.startsWith("/dashboard/vendor/helpdesk")
+                  pathname.startsWith("/vendor/dashboard/helpdesk")
                     ? "bg-blue-50 text-blue-700"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <HelpCircle className={`h-4 w-4 ${pathname.startsWith("/dashboard/vendor/helpdesk") ? "text-blue-700" : ""}`} />
+                <HelpCircle className={`h-4 w-4 ${pathname.startsWith("/vendor/dashboard/helpdesk") ? "text-blue-700" : ""}`} />
                 <span className="text-sm font-medium">Helpdesk ⚠️</span>
               </button>
             </Link>

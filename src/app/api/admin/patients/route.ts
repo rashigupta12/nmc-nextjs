@@ -208,11 +208,10 @@ export async function POST(req: NextRequest) {
       createdBy,
       doctorFName,
       hospitalName,
-      clinic,
+  
       patientFName,
       patientLName,
       gender,
-      dob,
       age,
       height,
       weight,

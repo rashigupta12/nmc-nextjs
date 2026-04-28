@@ -1,4 +1,4 @@
-// src/app/(protected)/dashboard/vendor/patients/[id]/edit/page.tsx
+// src/app/(protected)/vendor/dashboard/patients/create/page.tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import { FormField } from "@/components/form/FormField";
 import { SearchableSelect } from "@/components/form/SearchableSelect";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import React, { useEffect, useState, useCallback } from "react";
 import Swal from "sweetalert2";
 import { useCurrentUser } from "@/hooks/auth";
@@ -50,66 +50,10 @@ interface Ethnicity {
   ethnicity: string;
 }
 
-interface PatientData {
-  id: string;
-  patientId: string;
-  doctorFName: string;
-  doctorLName: string | null;
-  hospitalName: string;
-  clinic: string | null;
-  docMobileNo: string | null;
-  docEmail: string | null;
-  patientFName: string;
-  patientMName: string | null;
-  patientLName: string;
-  gender: Gender;
-  dob: string | null;
-  age: string;
-  height: string;
-  weight: string;
-  address: {
-    street: string;
-    city: string;
-    state: string;
-    country: string;
-    zipCode: string;
-    fullAddress: string;
-  };
-  phoneNo: string | null;
-  mobileNo: string | null;
-  email: string;
-  nationality: string | null;
-  ethinicity: string;
-  lifestyle: Lifestyle;
-  patientHistory: string | null;
-  medication: string | null;
-  familyHistory: string | null;
-  isPatientConsent: number;
-  mrno: string | null;
-  TRF: string | null;
-  tag: string | null;
-  smoking: Smoking;
-  alcoholic: number;
-  medicalHistory: string | null;
-  chestPain: YesNo;
-  cardiacEnzyme: YesNo;
-  cholestrol: string | null;
-  hdl: string | null;
-  ldl: string | null;
-  triglycerides: string | null;
-  hbValue: string | null;
-  bp_systolic: string | null;
-  bp_diastolic: string | null;
-}
-
-export default function EditPatientPage() {
+export default function AddPatientPage() {
   const router = useRouter();
-  const params = useParams();
-  const patientId = params.id as string;
   const user = useCurrentUser();
-  
   const [loading, setLoading] = useState(false);
-  const [fetchingPatient, setFetchingPatient] = useState(true);
   const [loadingHospitals, setLoadingHospitals] = useState(false);
   const [loadingEthnicities, setLoadingEthnicities] = useState(false);
   
@@ -195,86 +139,6 @@ export default function EditPatientPage() {
   const [bpSystolic, setBpSystolic] = useState("");
   const [bpDiastolic, setBpDiastolic] = useState("");
 
-  // Fetch patient data
-  const fetchPatient = useCallback(async () => {
-    setFetchingPatient(true);
-    try {
-      const res = await fetch(`/api/admin/patients/${patientId}`);
-      const data = await res.json();
-      
-      if (data.patient) {
-        const patient = data.patient as PatientData;
-        
-        // Set form data
-        setDoctorFName(patient.doctorFName);
-        setDoctorLName(patient.doctorLName || "");
-        setHospitalName(patient.hospitalName);
-        setClinic(patient.clinic || "");
-        setDocMobileNo(patient.docMobileNo || "");
-        setDocEmail(patient.docEmail || "");
-        
-        setPatientFName(patient.patientFName);
-        setPatientMName(patient.patientMName || "");
-        setPatientLName(patient.patientLName);
-        setGender(patient.gender);
-        setDob(patient.dob || "");
-        setAge(patient.age);
-        setHeight(patient.height);
-        setWeight(patient.weight);
-        
-        // Address
-        if (patient.address) {
-          setStreet(patient.address.street || "");
-          setSelectedCity(patient.address.city || "");
-          setSelectedState(patient.address.state || "");
-          setSelectedCountry(patient.address.country || "");
-          setZipCode(patient.address.zipCode || "");
-        }
-        
-        setPhoneNo(patient.phoneNo || "");
-        setMobileNo(patient.mobileNo || "");
-        setEmail(patient.email);
-        
-        setNationality(patient.nationality || "");
-        setSelectedEthnicity(patient.ethinicity);
-        setLifestyle(patient.lifestyle);
-        
-        setPatientHistory(patient.patientHistory || "");
-        setMedication(patient.medication || "");
-        setFamilyHistory(patient.familyHistory || "");
-        setIsPatientConsent(patient.isPatientConsent === 1);
-        setMrno(patient.mrno || "");
-        setTRF(patient.TRF || "");
-        setTag(patient.tag || "");
-        
-        setSmoking(patient.smoking);
-        setAlcoholic(patient.alcoholic === 1);
-        setMedicalHistory(patient.medicalHistory || "");
-        
-        setChestPain(patient.chestPain);
-        setCardiacEnzyme(patient.cardiacEnzyme);
-        
-        setCholestrol(patient.cholestrol || "");
-        setHdl(patient.hdl || "");
-        setLdl(patient.ldl || "");
-        setTriglycerides(patient.triglycerides || "");
-        
-        setHbValue(patient.hbValue || "");
-        setBpSystolic(patient.bp_systolic || "");
-        setBpDiastolic(patient.bp_diastolic || "");
-      } else {
-        Swal.fire("Error", "Patient not found", "error");
-        router.push("/dashboard/vendor/patients");
-      }
-    } catch (error) {
-      console.error("Error fetching patient:", error);
-      Swal.fire("Error", "Failed to load patient data", "error");
-      router.push("/dashboard/vendor/patients");
-    } finally {
-      setFetchingPatient(false);
-    }
-  }, [patientId, router]);
-
   // Fetch hospitals
   const fetchHospitals = useCallback(async () => {
     setLoadingHospitals(true);
@@ -316,10 +180,6 @@ export default function EditPatientPage() {
   }, [ethnicitySearch]);
 
   useEffect(() => {
-    fetchPatient();
-  }, [fetchPatient]);
-
-  useEffect(() => {
     fetchHospitals();
   }, [fetchHospitals]);
 
@@ -344,6 +204,9 @@ export default function EditPatientPage() {
         name: s.name,
       }));
       setStates(statesList);
+      setSelectedState("");
+      setCities([]);
+      setSelectedCity("");
     }
   }, [selectedCountry]);
 
@@ -352,6 +215,7 @@ export default function EditPatientPage() {
     if (selectedCountry && selectedState) {
       const citiesList = City.getCitiesOfState(selectedCountry, selectedState).map(c => c.name);
       setCities(citiesList);
+      setSelectedCity("");
     }
   }, [selectedCountry, selectedState]);
 
@@ -365,6 +229,8 @@ export default function EditPatientPage() {
       const m = today.getMonth() - birth.getMonth();
       if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) years--;
       setAge(String(Math.max(0, years)));
+    } else {
+      setAge("");
     }
   };
 
@@ -449,6 +315,14 @@ export default function EditPatientPage() {
     }
   };
 
+  // Generate patient ID
+  const generatePatientId = () => {
+    const prefix = "PAT";
+    const timestamp = Date.now().toString().slice(-6);
+    const random = Math.random().toString(36).substring(2, 5).toUpperCase();
+    return `${prefix}-${timestamp}-${random}`;
+  };
+
   // Build address object
   const buildAddress = () => {
     const addressParts = [];
@@ -472,7 +346,7 @@ export default function EditPatientPage() {
     e.preventDefault();
     
     if (!validateDobAge()) return;
-    if (!selectedHospital && !hospitalName) {
+    if (!selectedHospital) {
       Swal.fire("Error", "Please select a hospital", "error");
       return;
     }
@@ -484,12 +358,17 @@ export default function EditPatientPage() {
     setLoading(true);
 
     const payload = {
+      patientId: generatePatientId(),
+      vendorId: "ece454b1-7035-421d-9b35-1f5253d2ead9", // Replace with actual vendor ID from context/session
+      createdBy: user?.id ?? "",
+      // Doctor
       doctorFName,
       doctorLName: doctorLName || null,
       hospitalName,
-      clinic: clinic || null,
+      clinic: clinic || null, // Make clinic optional - send null if empty
       docMobileNo: docMobileNo || null,
       docEmail: docEmail || null,
+      // Patient
       patientFName: patientFName.charAt(0).toUpperCase() + patientFName.slice(1),
       patientMName: patientMName ? patientMName.charAt(0).toUpperCase() + patientMName.slice(1) : null,
       patientLName: patientLName.charAt(0).toUpperCase() + patientLName.slice(1),
@@ -498,13 +377,17 @@ export default function EditPatientPage() {
       age: age || null,
       height,
       weight,
+      // Address
       address: buildAddress(),
+      // Contact
       phoneNo: phoneNo || null,
       mobileNo: mobileNo || null,
       email,
+      // Demographic
       nationality: nationality || null,
       ethinicity: selectedEthnicity,
       lifestyle,
+      // Medical
       patientHistory: patientHistory || null,
       medication: medication || null,
       familyHistory: familyHistory || null,
@@ -512,23 +395,27 @@ export default function EditPatientPage() {
       mrno: mrno || null,
       TRF: TRF || null,
       tag: tag || null,
+      // Lifestyle
       smoking,
       alcoholic: alcoholic ? 1 : 0,
       medicalHistory: medicalHistory || null,
+      // Cardiovascular
       chestPain,
       cardiacEnzyme,
+      // Lipid
       cholestrol: cholestrol || null,
       hdl: hdl || null,
       ldl: ldl || null,
       triglycerides: triglycerides || null,
+      // Vitals
       hbValue: hbValue || null,
       bp_systolic: bpSystolic || null,
       bp_diastolic: bpDiastolic || null,
     };
 
     try {
-      const res = await fetch(`/api/admin/patients/${patientId}`, {
-        method: "PUT",
+      const res = await fetch("/api/admin/patients", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -536,18 +423,18 @@ export default function EditPatientPage() {
       if (res.ok) {
         await Swal.fire({
           icon: "success",
-          title: "Patient Updated!",
-          text: "Patient record has been updated successfully.",
+          title: "Patient Created!",
+          text: "Patient record has been created successfully.",
           timer: 2000,
           showConfirmButton: false,
         });
-        router.push("/dashboard/vendor/patients");
+        router.push("/vendor/dashboard/patients");
       } else {
         const err = await res.json();
         Swal.fire({
           icon: "error",
           title: "Error",
-          text: err.error || "Failed to update patient",
+          text: err.error || "Failed to create patient",
         });
       }
     } catch (err) {
@@ -562,15 +449,7 @@ export default function EditPatientPage() {
     }
   };
 
-  if (fetchingPatient) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-6 w-full flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-      </div>
-    );
-  }
-
-  // Grouped sections for better organization (same as create page)
+  // Grouped sections for better organization
   const sections = [
     {
       title: "Doctor Information",
@@ -1012,20 +891,20 @@ export default function EditPatientPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white p-6 w-full">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white  w-full">
       <div className="mx-auto">
         {/* Header */}
         <div className="mb-8">
           <Link 
-            href="/dashboard/vendor/patients" 
+            href="/vendor/dashboard/patients" 
             className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors mb-4"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Patients
           </Link>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Edit Patient</h1>
-            <p className="text-gray-600">Update patient details to modify the record.</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Add New Patient</h1>
+            <p className="text-gray-600">Fill in the patient details to create a new record.</p>
           </div>
         </div>
 
@@ -1048,7 +927,7 @@ export default function EditPatientPage() {
               disabled={loading} 
               className="bg-blue-600 hover:bg-blue-700 text-white px-8"
             >
-              {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Updating...</> : "Update Patient"}
+              {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : "Create Patient"}
             </Button>
             <Button 
               type="button" 
@@ -1056,7 +935,7 @@ export default function EditPatientPage() {
               asChild 
               className="border-gray-300 text-gray-700 hover:bg-gray-50"
             >
-              <Link href="/dashboard/vendor/patients">Cancel</Link>
+              <Link href="/vendor/dashboard/patients">Cancel</Link>
             </Button>
           </div>
         </form>

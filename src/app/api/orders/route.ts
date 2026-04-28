@@ -12,7 +12,7 @@ import {
   NewOrder,
   NewSample 
 } from '@/db/schema';
-import { eq, like, desc, or, sql } from 'drizzle-orm';
+import { eq, like, desc, or, sql, and } from 'drizzle-orm';
 
 // Input validation schema
 const CreateOrderSchema = z.object({
@@ -294,7 +294,7 @@ function calculateTatDate(tatDays: number): string {
   return tatDate.toISOString().slice(0, 10);
 }
 
-// GET endpoint to fetch orders
+// GET endpoint to fetch orders with patient and sample data
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -302,35 +302,143 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = (page - 1) * limit;
     const search = searchParams.get('search') || '';
+    const shipmentStatus = searchParams.get('shipmentStatus');
+    const paymentStatus = searchParams.get('paymentStatus');
+    const dateFrom = searchParams.get('dateFrom');
+    const dateTo = searchParams.get('dateTo');
 
-    // Build the where clause if search term exists
-    let whereClause = undefined;
+    // Build conditions array
+    const conditions = [];
+    
     if (search) {
-      whereClause = or(
-        like(OrdersTable.orderNo, `%${search}%`),
-        like(OrdersTable.remark, `%${search}%`)
+      conditions.push(
+        or(
+          sql`${OrdersTable.orderNo} ILIKE ${`%${search}%`}`,
+          sql`${PatientsTable.patientFName} ILIKE ${`%${search}%`}`,
+          sql`${PatientsTable.patientLName} ILIKE ${`%${search}%`}`,
+          sql`${PatientsTable.email} ILIKE ${`%${search}%`}`,
+          sql`${PatientsTable.mobileNo} ILIKE ${`%${search}%`}`,
+          sql`${OrdersTable.remark} ILIKE ${`%${search}%`}`
+        )
       );
     }
+    
+    if (shipmentStatus && shipmentStatus !== 'ALL') {
+      conditions.push(eq(OrdersTable.shipmentStatus, shipmentStatus));
+    }
+// Validate paymentStatus enum
+type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+const validPaymentStatuses: PaymentStatus[] = ['PENDING', 'PAID', 'FAILED', 'REFUNDED'];
 
-    // Execute query with all methods chained
+if (paymentStatus && paymentStatus !== 'ALL') {
+  if (validPaymentStatuses.includes(paymentStatus as PaymentStatus)) {
+    conditions.push(eq(OrdersTable.paymentStatus, paymentStatus as PaymentStatus));
+  }
+}
+    
+    if (dateFrom) {
+      conditions.push(sql`${OrdersTable.orderDate} >= ${dateFrom}`);
+    }
+    
+    if (dateTo) {
+      conditions.push(sql`${OrdersTable.orderDate} <= ${dateTo}`);
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Execute query with joins to get patient and sample data
     const orders = await db
-      .select()
+      .select({
+        id: OrdersTable.id,
+        orderNo: OrdersTable.orderNo,
+        vendorId: OrdersTable.vendorId,
+        patientId: OrdersTable.patientId,
+        createdBy: OrdersTable.createdBy,
+        sampleId: OrdersTable.sampleId,
+        addedBy: OrdersTable.addedBy,
+        shipmentStatus: OrdersTable.shipmentStatus,
+        orderDate: OrdersTable.orderDate,
+        statusCode: OrdersTable.statusCode,
+        remark: OrdersTable.remark,
+        totalAmount: OrdersTable.totalAmount,
+        currency: OrdersTable.currency,
+        paymentStatus: OrdersTable.paymentStatus,
+        createdAt: OrdersTable.createdAt,
+        updatedAt: OrdersTable.updatedAt,
+        // Patient information
+        patient: {
+          id: PatientsTable.id,
+          patientId: PatientsTable.patientId,
+          patientFName: PatientsTable.patientFName,
+          patientLName: PatientsTable.patientLName,
+          gender: PatientsTable.gender,
+          age: PatientsTable.age,
+          email: PatientsTable.email,
+          mobileNo: PatientsTable.mobileNo,
+          mrno: PatientsTable.mrno,
+        },
+        // Sample information (first sample)
+        sample: {
+          id: SamplesTable.id,
+          sampleId: SamplesTable.sampleId,
+          sampleType: SamplesTable.sampleType,
+          status: SamplesTable.status,
+          tatDueAt: SamplesTable.tatDueAt,
+          testCatalogId: SamplesTable.testCatalogId,
+          subtests: SamplesTable.subtests,
+        }
+      })
       .from(OrdersTable)
+      .leftJoin(PatientsTable, eq(OrdersTable.patientId, PatientsTable.id))
+      .leftJoin(SamplesTable, eq(OrdersTable.sampleId, SamplesTable.id))
       .where(whereClause)
+      .orderBy(desc(OrdersTable.createdAt))
       .limit(limit)
       .offset(offset);
     
+    // Fetch test names for each order
+    const ordersWithTestNames = await Promise.all(
+      orders.map(async (order) => {
+        let testName = null;
+        let testCode = null;
+        
+        if (order.sample?.testCatalogId) {
+          const test = await db.query.TestCatalogTable.findFirst({
+            where: eq(TestCatalogTable.id, order.sample.testCatalogId),
+            columns: {
+              testName: true,
+              testCode: true,
+            }
+          });
+          if (test) {
+            testName = test.testName;
+            testCode = test.testCode;
+          }
+        }
+        
+        return {
+          ...order,
+          sample: order.sample ? {
+            ...order.sample,
+            testName,
+            testCode,
+          } : null,
+        };
+      })
+    );
+    
     // Get total count
-    const totalResult = await db
+    const countResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(OrdersTable)
+      .leftJoin(PatientsTable, eq(OrdersTable.patientId, PatientsTable.id))
       .where(whereClause);
     
-    const total = totalResult[0]?.count || 0;
+    const total = Number(countResult[0]?.count) || 0;
 
     return NextResponse.json({
       success: true,
-      orders,
+      orders: ordersWithTestNames,
       pagination: {
         page,
         limit,
