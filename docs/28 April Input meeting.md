@@ -11,9 +11,9 @@
 * [ ] 🔴 Single toggle button: Activate / Deactivate *(one button, toggle-case)*
 * [ ] 🔴 Guard: all BP actions / functionality disabled when BP is inactive; admin must activate first
 * [x] 🔴 ✨ Remove NextJS Library references from the application
-* [ ] 🔴 ✨ Remove GST Number field from Business Partner form
-* [ ] 🔴 ✨ Remove Website field from Business Partner form
-* [ ] 🔴 ✨ Remove Org field — only listed fields to be kept on BP form
+* [ ] 🔴 ✨ GST Number field from Business Partner form
+* [ ] 🔴 ✨ Website field from Business Partner form
+* [ ] 🔴 ✨ Org field — only listed fields to be kept on BP form
 
 ## 👥 Point of Contact (PoC)
 
