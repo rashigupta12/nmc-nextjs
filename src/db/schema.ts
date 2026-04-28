@@ -386,6 +386,26 @@ export const VendorEthnicityMasterTable = pgTable(
 // VENDOR HOSPITAL MASTER TABLE
 // =============================================================================
 
+export const VendorContactsTable = pgTable(
+  "vendor_contacts",
+  {
+    id: uuid("id").defaultRandom().primaryKey().notNull(),
+    vendorId: uuid("vendor_id").notNull(),
+    name: text("name").notNull(),
+    designation: text("designation"),
+    email: text("email"),
+    phoneNumber: text("phone_number"),
+    isPrimary: boolean("is_primary").default(false).notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("vendor_contacts_vendor_idx").on(t.vendorId),
+    index("vendor_contacts_active_idx").on(t.isActive),
+  ]
+);
+
 export const VendorHospitalMasterTable = pgTable(
   "vendor_hospital_master",
   {
@@ -853,6 +873,7 @@ export const vendorsRelations = relations(VendorsTable, ({ one, many }) => ({
   }),
   ethnicities: many(VendorEthnicityMasterTable),
   hospitals: many(VendorHospitalMasterTable),
+  contacts: many(VendorContactsTable),
   patients: many(PatientsTable),
   orders: many(OrdersTable),
   samples: many(SamplesTable),
@@ -878,6 +899,13 @@ export const vendorSettingsRelations = relations(VendorSettingsTable, ({ one }) 
 export const vendorEthnicityRelations = relations(VendorEthnicityMasterTable, ({ one }) => ({
   vendor: one(VendorsTable, { 
     fields: [VendorEthnicityMasterTable.vendorId], 
+    references: [VendorsTable.id] 
+  }),
+}));
+
+export const vendorContactsRelations = relations(VendorContactsTable, ({ one }) => ({
+  vendor: one(VendorsTable, { 
+    fields: [VendorContactsTable.vendorId], 
     references: [VendorsTable.id] 
   }),
 }));
@@ -1073,6 +1101,9 @@ export type NewVendorEthnicity = InferInsertModel<typeof VendorEthnicityMasterTa
 
 export type VendorHospital = InferSelectModel<typeof VendorHospitalMasterTable>;
 export type NewVendorHospital = InferInsertModel<typeof VendorHospitalMasterTable>;
+
+export type VendorContact = InferSelectModel<typeof VendorContactsTable>;
+export type NewVendorContact = InferInsertModel<typeof VendorContactsTable>;
 
 export type TestCatalog = InferSelectModel<typeof TestCatalogTable>;
 export type NewTestCatalog = InferInsertModel<typeof TestCatalogTable>;

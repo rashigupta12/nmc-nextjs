@@ -186,20 +186,17 @@ export async function createVendor(formData: FormData) {
     // Validation - check required fields according to your schema
     if (
       !vendorData.name ||
-      !vendorData.email ||
-      !vendorData.contactNo ||
-      !vendorData.gender ||
       !vendorData.address
     ) {
       return {
         error:
-          "Missing required fields. Name, email, contact number, gender, and address are required.",
+          "Missing required fields. Name and address are required.",
       };
     }
 
-    // Validate email format
+    // Validate email format if provided
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(vendorData.email)) {
+    if (vendorData.email && !emailRegex.test(vendorData.email)) {
       return { error: "Invalid email format" };
     }
 
@@ -230,7 +227,7 @@ export async function createVendor(formData: FormData) {
         status: "ACTIVE",
         name: vendorData.name,
         contactNo: vendorData.contactNo,
-        gender: vendorData.gender,
+        gender: vendorData.gender || 'O',
         costCentreNo: vendorData.costCentreNo || null,
         mrNo: vendorData.mrNo || null,
         email: vendorData.email,
@@ -339,18 +336,20 @@ export async function createVendor(formData: FormData) {
       notificationEvents: null,
     });
 
-    // Send welcome email with credentials
-    try {
-      await sendVendorWelcomeEmail(
-        vendorData.email,
-        vendorData.name,
-        loginUrl,
-        tempPassword,
-        vendorCode
-      );
-    } catch (emailError) {
-      console.error("Failed to send welcome email:", emailError);
-      // Don't fail the vendor creation if email fails
+    // Send welcome email with credentials only if email is provided
+    if (vendorData.email) {
+      try {
+        await sendVendorWelcomeEmail(
+          vendorData.email,
+          vendorData.name,
+          loginUrl,
+          tempPassword,
+          vendorCode
+        );
+      } catch (emailError) {
+        console.error("Failed to send welcome email:", emailError);
+        // Don't fail the vendor creation if email fails
+      }
     }
 
     revalidatePath("/dashboard/admin/vendors");

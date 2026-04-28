@@ -3,7 +3,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { createVendor } from "@/actions/admin/vendor-actions";
@@ -28,6 +28,14 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
+const pointOfContactSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  designation: z.string().optional(),
+  email: z.string().email("Invalid email").optional().or(z.literal("")),
+  phoneNumber: z.string().optional(),
+  isPrimary: z.boolean().default(false),
+});
+
 const vendorSchema = z.object({
   name: z.string().min(2, "Company Name is required"),
   address: z.string().min(5, "Address is required"),
@@ -39,6 +47,7 @@ const vendorSchema = z.object({
   state: z.string().optional(),
   country: z.string().optional(),
   zipCode: z.string().optional(),
+  pointOfContacts: z.array(pointOfContactSchema).min(1, "At least one Point of Contact is required"),
 });
 
 type VendorFormValues = z.infer<typeof vendorSchema>;
@@ -64,16 +73,36 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
       state: "",
       country: "India",
       zipCode: "",
+      pointOfContacts: [
+        { name: "", designation: "", email: "", phoneNumber: "", isPrimary: true }
+      ],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "pointOfContacts",
   });
 
   async function onSubmit(data: VendorFormValues) {
     setIsLoading(true);
     try {
       const formData = new FormData();
-      Object.entries(data).forEach(([key, value]) => {
-        if (value) formData.append(key, value);
-      });
+      
+      // Append scalar fields
+      if (data.name) formData.append('name', data.name);
+      if (data.address) formData.append('address', data.address);
+      if (data.email) formData.append('email', data.email);
+      if (data.contactNo) formData.append('contactNo', data.contactNo);
+      if (data.website) formData.append('website', data.website);
+      if (data.gstNumber) formData.append('gstNumber', data.gstNumber);
+      if (data.city) formData.append('city', data.city);
+      if (data.state) formData.append('state', data.state);
+      if (data.country) formData.append('country', data.country);
+      if (data.zipCode) formData.append('zipCode', data.zipCode);
+      
+      // Append array field as JSON
+      formData.append('pointOfContacts', JSON.stringify(data.pointOfContacts));
 
       const result = await createVendor(formData);
 
@@ -282,6 +311,94 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
                 )}
               />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Point of Contacts</CardTitle>
+            <CardDescription>
+              Add contact persons for this Business Partner. At least one contact is required.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {fields.map((field, index) => (
+              <div key={field.id} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end border p-4 rounded-lg bg-gray-50">
+                <FormField
+                  control={form.control}
+                  name={`pointOfContacts.${index}.name`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Contact name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`pointOfContacts.${index}.designation`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Designation</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Designation" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`pointOfContacts.${index}.email`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="Email" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`pointOfContacts.${index}.phoneNumber`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Phone number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex gap-2">
+                  {fields.length > 1 && (
+                    <Button 
+                      type="button" 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => remove(index)}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => append({ name: "", designation: "", email: "", phoneNumber: "", isPrimary: false })}
+              className="w-full"
+            >
+              + Add Another Point of Contact
+            </Button>
           </CardContent>
         </Card>
 
