@@ -213,6 +213,11 @@ export default function SampleDetailsPage() {
   // ── Save ───────────────────────────────────────────────────────────────────
 
   const handleSave = async () => {
+    // ✅ FIX: Check if uploadMeta exists
+    if (!uploadMeta) {
+      return Swal.fire("Error", "No upload data found. Please upload the CSV again.", "error");
+    }
+
     const stillInvalid = rows.filter(r => r.validationError && !r.corrected);
     if (stillInvalid.length > 0) {
       const confirm = await Swal.fire({
@@ -235,13 +240,15 @@ export default function SampleDetailsPage() {
     setPhase("saving");
 
     try {
+      // ✅ FIX: Include patientId in the request body
       const res = await fetch(`/api/vendor/samples/${sampleId}/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          testId: uploadMeta!.testId,
-          testCode: uploadMeta!.testCode,
-          testReportName: uploadMeta!.testReportName,
+          patientId: uploadMeta.patientId,  // ✅ Added patientId
+          testId: uploadMeta.testId,
+          testCode: uploadMeta.testCode,
+          testReportName: uploadMeta.testReportName,
           records: recordsToSave,
         }),
       });

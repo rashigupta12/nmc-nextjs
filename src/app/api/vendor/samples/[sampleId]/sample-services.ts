@@ -3,7 +3,7 @@ import { GeneticVariant } from '@/models/geneticVariant';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { GeneReportTemp } from '@/models/geneReportTemp';
 import { db } from '@/db';
-import { TestCatalogTable } from '@/db/schema';
+import { TestCatalogTable, SamplesTable } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
 /**
@@ -280,6 +280,8 @@ export async function validateGeneticData(geneticData: any[], testCode: string) 
       reportVariant: matchedVariant.reportVariant,
       response: matchedVariant.response,
       status: matchedVariant.status,
+      recommendation: matchedVariant.recommendation,
+      interpretation: matchedVariant.interpretation,
     });
 
     validationResults.validRecords++;
@@ -292,6 +294,8 @@ export async function validateGeneticData(geneticData: any[], testCode: string) 
         status: matchedVariant.status,
         matchedVariant: matchedVariant.testVariant,
         matchType,
+        recommendation: matchedVariant.recommendation || '',
+        interpretation: matchedVariant.interpretation || '',
       },
     });
   }
@@ -308,18 +312,18 @@ export async function validateGeneticData(geneticData: any[], testCode: string) 
 
 /**
  * Save processed genetic data to temp collection
- * Now uses testId to fetch test catalog information
+ * Now uses testId to fetch test catalog information and sample UUID
  */
 export async function saveWellnessDataToTemp(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   validData: any[],
   patientId: string,
-  sampleId: string,
+  sampleDisplayId: string,
   testId: string
 ) {
   console.log('💾 saveWellnessDataToTemp called with:', {
     patientId,
-    sampleId,
+    sampleDisplayId,
     testId,
     validDataLength: validData.length,
   });
@@ -328,8 +332,8 @@ export async function saveWellnessDataToTemp(
   if (!patientId) {
     throw new Error('patientId is required and cannot be empty');
   }
-  if (!sampleId) {
-    throw new Error('sampleId is required and cannot be empty');
+  if (!sampleDisplayId) {
+    throw new Error('sampleDisplayId is required and cannot be empty');
   }
   if (!testId) {
     throw new Error('testId is required and cannot be empty');
@@ -353,9 +357,28 @@ export async function saveWellnessDataToTemp(
     throw new Error(`Test catalog not found for testId: ${testId}`);
   }
 
+  // Fetch the actual sample UUID from Neon using the display sampleId
+  const [sample] = await db
+    .select({
+      id: SamplesTable.id,
+      sampleId: SamplesTable.sampleId,
+    })
+    .from(SamplesTable)
+    .where(eq(SamplesTable.sampleId, sampleDisplayId))
+    .limit(1);
+
+  if (!sample) {
+    throw new Error(`Sample not found for sampleId: ${sampleDisplayId}`);
+  }
+
   console.log('📋 Test catalog info:', {
     testCode: testCatalog.testCode,
     testName: testCatalog.testName,
+  });
+
+  console.log('📋 Sample info:', {
+    uuid: sample.id,
+    displayId: sample.sampleId,
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -403,11 +426,12 @@ export async function saveWellnessDataToTemp(
       console.log(`✅ Clean genotype: "${cleanGenotype}"`);
     }
 
-    // Ensure all required fields have values
+    // Ensure all required fields have values - use actual data from master, not placeholders
     const tempRecordData = {
-      patientId: patientId.toUpperCase(),
-      sampleId: sampleId.toUpperCase(),
-      testId: testId,
+      // Store UUID in lowercase as per schema (uppercase: false)
+      patientId: patientId.toLowerCase(),
+      sampleId: sample.id.toLowerCase(), // Use the UUID, not the display ID
+      testId: testId.toLowerCase(),
       testCode: testCatalog.testCode,
       testReportName: testCatalog.testName,
       uniqueId: record.uniqueId,
@@ -415,7 +439,7 @@ export async function saveWellnessDataToTemp(
       test_variant: cleanGenotype.toUpperCase(),
       report_variant: matchedVariant.reportVariant || '',
       sectionId: masterRecord.section.id || '',
-      condition_name: record.conditionName || '',
+      condition_name: record.conditionName || masterRecord.condition.name,
       response: matchedVariant.response || '',
       recommendation: matchedVariant.recommendation || '',
       interpretation: matchedVariant.interpretation || '',
@@ -423,7 +447,11 @@ export async function saveWellnessDataToTemp(
       modifiedDate: new Date(),
     };
 
-    console.log(`💾 Creating GeneReportTemp record:`, tempRecordData);
+    console.log(`💾 Creating GeneReportTemp record:`, {
+      ...tempRecordData,
+      recommendation: tempRecordData.recommendation.substring(0, 100) + '...',
+      interpretation: tempRecordData.interpretation.substring(0, 100) + '...',
+    });
 
     const tempRecord = new GeneReportTemp(tempRecordData);
     tempRecords.push(tempRecord);
@@ -444,6 +472,8 @@ export async function saveWellnessDataToTemp(
         testCode: savedRecords[0].testCode,
         testReportName: savedRecords[0].testReportName,
         uniqueId: savedRecords[0].uniqueId,
+        recommendation: savedRecords[0].recommendation?.substring(0, 100),
+        interpretation: savedRecords[0].interpretation?.substring(0, 100),
         _id: savedRecords[0]._id,
       });
     }

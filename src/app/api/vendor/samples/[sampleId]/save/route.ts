@@ -35,13 +35,13 @@ export async function POST(
     // MongoDB needed for GeneReportTemp inserts inside saveWellnessDataToTemp
     await connectToMongoDB();
 
-    // Get sampleId from params
+    // Get sampleId from params (this is the display ID like SMP-26042700002)
     const params = await context.params;
-    const sampleId = params.sampleId;
+    const sampleDisplayId = params.sampleId;
     
-    console.log('📥 Save route hit - sampleId:', sampleId);
+    console.log('📥 Save route hit - sampleDisplayId:', sampleDisplayId);
 
-    if (!sampleId) {
+    if (!sampleDisplayId) {
       return NextResponse.json({ success: false, error: 'Sample ID is required' }, { status: 400 });
     }
 
@@ -77,32 +77,36 @@ export async function POST(
     }
 
     // ── 1. Verify sample exists in Neon before writing anything ──────────────
-    console.log('🔍 Looking for sample in Neon:', sampleId);
+    console.log('🔍 Looking for sample in Neon with display ID:', sampleDisplayId);
     const [neonSample] = await db
       .select({ id: SamplesTable.id, sampleId: SamplesTable.sampleId })
       .from(SamplesTable)
-      .where(eq(SamplesTable.sampleId, sampleId))
+      .where(eq(SamplesTable.sampleId, sampleDisplayId))
       .limit(1);
 
     if (!neonSample) {
-      console.log('❌ Sample not found in Neon:', sampleId);
+      console.log('❌ Sample not found in Neon:', sampleDisplayId);
       return NextResponse.json({ success: false, error: 'Sample not found' }, { status: 404 });
     }
 
-    console.log('✅ Sample found in Neon:', { id: neonSample.id, sampleId: neonSample.sampleId });
+    console.log('✅ Sample found in Neon:', { 
+      uuid: neonSample.id, 
+      displayId: neonSample.sampleId 
+    });
 
-    // ── 2. Write to MongoDB (GeneReportTemp) and Neon (SamplesTable) in parallel
+    // ── 2. Write to MongoDB (GeneReportTemp) ──────────────────────────────────
+    // Pass the display ID so the service can fetch the UUID
     console.log('💾 Saving to MongoDB via saveWellnessDataToTemp...');
     const savedRecords = await saveWellnessDataToTemp(
       records,
       patientId,
-      sampleId,
+      sampleDisplayId,  // Pass display ID, service will fetch UUID
       testId
     );
 
     console.log('✅ Saved to MongoDB. Records saved:', savedRecords.length);
 
-    // Update sample status in Neon
+    // ── 3. Update sample status in Neon ──────────────────────────────────────
     console.log('🔄 Updating sample status in Neon...');
     await db
       .update(SamplesTable)
@@ -119,7 +123,7 @@ export async function POST(
         },
         updatedAt: new Date(),
       })
-      .where(eq(SamplesTable.sampleId, sampleId));
+      .where(eq(SamplesTable.sampleId, sampleDisplayId));
 
     console.log('✅ Sample status updated to PROCESSING');
 
@@ -127,7 +131,7 @@ export async function POST(
       success: true,
       message: 'Genetic data saved successfully. Sample status updated to PROCESSING.',
       data: {
-        sampleId,
+        sampleId: sampleDisplayId,
         status: 'PROCESSING',
         recordsSaved: savedRecords.length,
       },
