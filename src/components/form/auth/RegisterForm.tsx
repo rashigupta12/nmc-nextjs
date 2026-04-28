@@ -24,6 +24,7 @@ import { registerUser } from "@/actions/registerUser";
 import MainButton from "@/components/common/MainButton";
 import { FormError } from "../form-error";
 import { FormSuccess } from "../form-success";
+import Image from "next/image";
 
 const FormSchema = RegisterUserSchema;
 
@@ -80,6 +81,20 @@ const RegisterForm = ({ text, role }: RegisterFormProps) => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader>
+          {/* Logo Section */}
+          <div className="flex flex-col items-center space-y-2 mb-4">
+            <Link href="/">
+              <Image
+                alt="logo"
+                src="/neotech.png"
+                height={140}
+                width={140}
+                className="shadow-md hover:shadow-xl transition-shadow duration-300 p-4"
+              />
+            </Link>
+            <h1 className="text-gray-900 font-bold text-2xl">Neotech</h1>
+          </div>
+          
           <div className="text-center">
             <h2 className="text-3xl font-bold text-gray-900">Hello!</h2>
             <p className="mt-2 text-sm text-gray-600">{text}</p>

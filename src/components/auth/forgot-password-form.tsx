@@ -61,13 +61,13 @@ export function ForgotPasswordForm() {
           <Link href="/">
             <Image
               alt="logo"
-              src="/next.svg"
-              height={100}
-              width={100}
+              src="/neotech.png"
+              height={140}
+              width={140}
               className="shadow-md hover:shadow-xl transition-shadow duration-300 p-4"
             />
           </Link>
-          <h1 className="text-red-500 font-bold text-xl">The - Library</h1>
+          <h1 className="text-gray-900 font-bold text-2xl">Neotech</h1>
         </div>
 
         {/* Header */}
