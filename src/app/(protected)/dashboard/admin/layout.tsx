@@ -150,7 +150,7 @@ export default function AdminLayout({
               </button>
             </Link>
 
-            {/* Vendors */}
+            {/* Business Partners */}
             <Link href="/dashboard/admin/vendors">
               <button
                 className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
@@ -162,7 +162,7 @@ export default function AdminLayout({
                 <Building2
                   className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/vendors") ? "text-blue-700" : ""}`}
                 />
-                <span className="text-sm font-medium">Vendors</span>
+                <span className="text-sm font-medium">Business Partners</span>
               </button>
             </Link>
 

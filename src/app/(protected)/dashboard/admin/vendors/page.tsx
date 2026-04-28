@@ -17,21 +17,21 @@ export default function VendorsManagementPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Vendors Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Business Partners Management</h1>
           <p className="text-muted-foreground mt-2">
             Create and manage business partners
           </p>
         </div>
         <Button onClick={() => setActiveTab("create")}>
           <Plus className="h-4 w-4 mr-2" />
-          Add New Vendor
+          Add New Business Partner
         </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="list">All Vendors</TabsTrigger>
-          <TabsTrigger value="create">Create Vendor</TabsTrigger>
+          <TabsTrigger value="list">All Business Partners</TabsTrigger>
+          <TabsTrigger value="create">Create Business Partner</TabsTrigger>
         </TabsList>
 
         <TabsContent value="list">

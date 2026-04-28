@@ -61,7 +61,7 @@ export function VendorList() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading vendors...</p>
+          <p className="mt-4 text-gray-600">Loading business partners...</p>
         </div>
       </div>
     );
@@ -71,9 +71,9 @@ export function VendorList() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <p className="text-muted-foreground">No vendors found</p>
+          <p className="text-muted-foreground">No business partners found</p>
           <p className="text-sm text-muted-foreground mt-2">
-            Click &quot; Add New Vendor &quot; to create your first vendor
+            Click " Add New Business Partner " to create your first business partner
           </p>
         </div>
       </div>
@@ -86,7 +86,7 @@ export function VendorList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Vendor Code</TableHead>
+              <TableHead>Business Partner Code</TableHead>
               <TableHead>Company Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Contact</TableHead>
