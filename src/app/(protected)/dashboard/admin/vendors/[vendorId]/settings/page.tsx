@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  ArrowLeft,
   Bell,
   Building2,
   Cloud,
@@ -35,7 +36,7 @@ import {
   MapPin,
   Save
 } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -112,6 +113,7 @@ type VendorSettingsFormValues = z.infer<typeof vendorSettingsSchema>;
 
 export default function VendorSettingsPage() {
   const params = useParams();
+  const router = useRouter();
   const vendorId = params.vendorId as string;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -206,11 +208,21 @@ export default function VendorSettingsPage() {
     <div className=" mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between sticky top-0 bg-background z-10 pb-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Vendor Settings</h1>
-          <p className="text-muted-foreground mt-2">
-            Configure settings for {vendor?.name} ({vendor?.vendorCode})
-          </p>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.back()}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Report Settings</h1>
+            <p className="text-muted-foreground mt-2">
+              Configure report settings for {vendor?.name} ({vendor?.vendorCode})
+            </p>
+          </div>
         </div>
         <Button onClick={form.handleSubmit(onSubmit)} disabled={saving} size="lg" className="gap-2">
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -296,12 +308,12 @@ export default function VendorSettingsPage() {
                   <div>
                     <div className="flex items-center gap-2 mb-3">
                       <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <Label className="font-semibold">Vendor Address</Label>
+                      <Label className="font-semibold">Official Address</Label>
                     </div>
                     <textarea
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       rows={3}
-                      placeholder="Enter vendor address that will appear on reports..."
+                      placeholder="Enter official address that will appear on reports..."
                       {...form.register("vendorAddress")}
                     />
                   </div>
@@ -408,13 +420,13 @@ export default function VendorSettingsPage() {
               </AccordionContent>
             </AccordionItem>
 
-            {/* 3. Report Settings */}
+            {/* 3. Report Configuration */}
             <AccordionItem value="reports" className="border rounded-lg bg-card overflow-hidden">
               <AccordionTrigger className="hover:no-underline px-6 py-4">
                 <div className="flex items-center gap-3">
                   <Layout className="h-5 w-5 text-orange-600" />
                   <div className="text-left">
-                    <h3 className="text-lg font-semibold">Report Settings</h3>
+                    <h3 className="text-lg font-semibold">Report Configuration</h3>
                     <p className="text-sm text-muted-foreground">
                       Configure privacy, security, and layout options
                     </p>

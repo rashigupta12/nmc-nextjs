@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Popover,
@@ -86,6 +87,13 @@ export default function AdminLayout({
       <nav className="bg-white shadow-sm border-b px-6 py-3 sticky top-0 z-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <Image
+              alt="Neotech Logo"
+              src="/neotech.png"
+              height={45}
+              width={45}
+              className="object-contain"
+            />
             <h1 className="text-2xl font-semibold text-gray-800">
               NeoTech Admin Portal
             </h1>

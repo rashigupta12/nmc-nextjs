@@ -34,7 +34,9 @@ import {
   Phone,
   Settings,
   Trash2,
-  User
+  User,
+  ToggleLeft,
+  ToggleRight
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -174,49 +176,38 @@ export default function VendorDetailsPage() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{vendor.name}</h1>
-            <p className="text-muted-foreground mt-1">
-              Vendor Code: {vendor.vendorCode}
-            </p>
-          </div>
+           <div className="flex items-center gap-3">
+             <h1 className="text-3xl font-bold tracking-tight">{vendor.name}</h1>
+             <Badge 
+               className={`
+                 ${vendor.status === "ACTIVE" ? "bg-green-100 text-green-800" : ""}
+                 ${vendor.status === "SUSPENDED" ? "bg-yellow-100 text-yellow-800" : ""}
+                 ${vendor.status === "INACTIVE" ? "bg-gray-100 text-gray-800" : ""}
+                 px-3 py-1
+               `}
+             >
+               {vendor.status}
+             </Badge>
+             <p className="text-muted-foreground mt-1">
+               Vendor Code: {vendor.vendorCode}
+             </p>
+           </div>
         </div>
-        <div className="flex gap-2">
-          <Link href={`/dashboard/admin/vendors/${vendorId}/settings`}>
-            <Button variant="outline">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-          </Link>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the vendor
-                  and all associated data.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+         <div className="flex gap-2">
+           <Link href={`/dashboard/admin/vendors/${vendorId}/settings`}>
+             <Button variant="outline" disabled={vendor.status !== "ACTIVE"}>
+               <Settings className="h-4 w-4 mr-2" />
+               Settings
+             </Button>
+           </Link>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="default">
-                <KeyRound className="h-4 w-4 mr-2" />
-                Reset Password
-              </Button>
-            </AlertDialogTrigger>
+           <AlertDialog>
+             <AlertDialogTrigger asChild>
+               <Button variant="default" disabled={vendor.status !== "ACTIVE"}>
+                 <KeyRound className="h-4 w-4 mr-2" />
+                 Reset Password
+               </Button>
+             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Reset Vendor Password?</AlertDialogTitle>
@@ -235,42 +226,21 @@ export default function VendorDetailsPage() {
         </div>
       </div>
 
-      {/* Status Badge */}
+      {/* Status Toggle */}
       <div className="flex items-center gap-4">
-        <Badge 
-          className={`
-            ${vendor.status === "ACTIVE" ? "bg-green-100 text-green-800" : ""}
-            ${vendor.status === "SUSPENDED" ? "bg-yellow-100 text-yellow-800" : ""}
-            ${vendor.status === "INACTIVE" ? "bg-gray-100 text-gray-800" : ""}
-            px-3 py-1
-          `}
-        >
-          {vendor.status}
-        </Badge>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
           <Button
+            variant="ghost"
             size="sm"
-            variant="outline"
-            onClick={() => handleStatusChange("ACTIVE")}
-            disabled={vendor.status === "ACTIVE"}
+            onClick={() => handleStatusChange(vendor.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")}
+            className="flex items-center gap-2"
           >
-            Activate
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleStatusChange("SUSPENDED")}
-            disabled={vendor.status === "SUSPENDED"}
-          >
-            Suspend
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleStatusChange("INACTIVE")}
-            disabled={vendor.status === "INACTIVE"}
-          >
-            Deactivate
+            {vendor.status === "ACTIVE" ? (
+              <ToggleRight className="h-6 w-6 text-green-600" />
+            ) : (
+              <ToggleLeft className="h-6 w-6 text-gray-400" />
+            )}
+            <span>{vendor.status === "ACTIVE" ? "Active" : "Inactive"}</span>
           </Button>
         </div>
       </div>

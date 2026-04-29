@@ -4,14 +4,13 @@
 
 ## 🏰 Business Partner — Core Entity
 
-
 * [x] 🔴 Rename "Vendor" to "Business Partner" across entire application
 * [x] 🔴 Vendor ID Update to Business Partner.
 * [x] 🔴 Business Partner form fields: Company Name *(mandatory)*, Address *(mandatory)*
-* [ ] 🔴 Active / Inactive status flag on Business Partner
-* [ ] 🔴 Replace Delete with Deactivate — no hard deletes from admin panel
-* [ ] 🔴 Single toggle button: Activate / Deactivate *(one button, toggle-case)*
-* [ ] 🔴 Guard: all BP actions / functionality disabled when BP is inactive; admin must activate first
+* [x] 🔴 Active / Inactive status flag on Business Partner
+* [x] 🔴 Replace Delete with Deactivate — no hard deletes from admin panel
+* [x] 🔴 Single toggle button: Activate / Deactivate *(one button, toggle-case)*
+* [x] 🔴 Guard: all BP actions / functionality disabled when BP is inactive; admin must activate first
 * [x] 🔴 ✨ Remove NextJS Library references from the application
 * [x] 🔴 ✨ GST Number field from Business Partner form
 * [x] 🔴 ✨ Website field from Business Partner form
@@ -23,6 +22,11 @@
 * [x] 🔴 Support multiple PoCs per Business Partner
 * [x] 🔴 Minimum 1 PoC mandatory before BP can be saved / activated
 * [x] 🟡 Add / Edit / Remove PoC entries from BP detail page
+* [x] Use Country state city package
+* [x] move GST to company detils
+  * [x] after contact website
+* [x] Reduce + button size, and move it to top the card
+* [x] From 2 col to 3 col in addrss form
 
 ## ⚙️ Business Partner Settings
 

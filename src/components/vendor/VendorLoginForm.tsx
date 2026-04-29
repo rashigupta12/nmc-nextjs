@@ -79,12 +79,11 @@ export function VendorLoginForm({ slug }: VendorLoginFormProps) {
         <div className="flex flex-col items-center space-y-2">
           <Image
             alt="logo"
-            src="/next.svg"
-            height={100}
-            width={100}
+            src="/neotech.png"
+            height={140}
+            width={140}
             className="shadow-md hover:shadow-xl transition-shadow duration-300 p-4"
           />
-          <h1 className="text-red-500 font-bold text-xl">Vendor Portal</h1>
         </div>
 
         {/* Login Header */}

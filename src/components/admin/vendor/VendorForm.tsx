@@ -2,8 +2,8 @@
 // src/components/admin/VendorForm.tsx
 "use client";
 
-import { useState } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useState, useEffect } from "react";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { createVendor } from "@/actions/admin/vendor-actions";
@@ -19,6 +19,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -27,6 +34,7 @@ import {
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { Country, State, City } from "country-state-city";
 
 const pointOfContactSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -157,7 +165,7 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
                 )}
               />
 
-              <FormField
+              {/* <FormField
                 control={form.control}
                 name="email"
                 render={({ field }) => (
@@ -187,7 +195,7 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
                     <FormMessage />
                   </FormItem>
                 )}
-              />
+              /> */}
 
               <FormField
                 control={form.control}
@@ -202,101 +210,7 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
                   </FormItem>
                 )}
               />
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Address Information</CardTitle>
-            <CardDescription>
-              Business Partner's registered office address
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="country"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Country</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Country" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="state"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>State</FormLabel>
-                    <FormControl>
-                      <Input placeholder="State" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="city"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>City</FormLabel>
-                    <FormControl>
-                      <Input placeholder="City" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="zipCode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Zip Code</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Zip code" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address *</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Street address" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Tax Information</CardTitle>
-            <CardDescription>
-              Business registration details
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="gstNumber"
@@ -316,10 +230,178 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Point of Contacts</CardTitle>
+            <CardTitle>Address Information</CardTitle>
             <CardDescription>
-              Add contact persons for this Business Partner. At least one contact is required.
+              Business Partner's registered office address
             </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Address *</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Street address" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="country"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Country</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select country" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="max-h-[300px]">
+                        {Country.getAllCountries().map((country: any) => (
+                          <SelectItem key={country.isoCode} value={country.isoCode}>
+                            {country.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="state"
+                render={({ field }) => {
+                  const selectedCountry = useWatch({
+                    control: form.control,
+                    name: "country"
+                  });
+                  const states = selectedCountry ? State.getStatesOfCountry(selectedCountry) : [];
+                  
+                  useEffect(() => {
+                    field.onChange("");
+                    form.setValue("city", "");
+                  }, [selectedCountry]);
+
+                  return (
+                    <FormItem>
+                      <FormLabel>State</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        disabled={!selectedCountry}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select state" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="max-h-[300px]">
+                          {states.map((state: any) => (
+                            <SelectItem key={state.isoCode} value={state.isoCode}>
+                              {state.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
+              />
+
+              <FormField
+                control={form.control}
+                name="city"
+                render={({ field }) => {
+                  const selectedCountry = useWatch({
+                    control: form.control,
+                    name: "country"
+                  });
+                  const selectedState = useWatch({
+                    control: form.control,
+                    name: "state"
+                  });
+                  const cities = selectedCountry && selectedState ? City.getCitiesOfState(selectedCountry, selectedState) : [];
+                  
+                  useEffect(() => {
+                    field.onChange("");
+                  }, [selectedState]);
+
+                  return (
+                    <FormItem>
+                      <FormLabel>City</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        disabled={!selectedState}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select city" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="max-h-[300px]">
+                          {cities.map((city: any) => (
+                            <SelectItem key={city.name} value={city.name}>
+                              {city.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
+              />
+
+              <FormField
+                control={form.control}
+                name="zipCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Zip Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Zip code" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>Point of Contacts</CardTitle>
+                <CardDescription>
+                  Add contact persons for this Business Partner. At least one contact is required.
+                </CardDescription>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => append({ name: "", designation: "", email: "", phoneNumber: "", isPrimary: false })}
+              >
+                + Add Contact
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {fields.map((field, index) => (
@@ -391,14 +473,6 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
               </div>
             ))}
 
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => append({ name: "", designation: "", email: "", phoneNumber: "", isPrimary: false })}
-              className="w-full"
-            >
-              + Add Another Point of Contact
-            </Button>
           </CardContent>
         </Card>
 
