@@ -1,116 +1,225 @@
-// components/dashboard/admin/content/ImageUploader.tsx
-// Reusable image uploader — signs via /api/admin/upload, then POSTs directly
-// to Cloudinary. Returns the secure_url to the parent via onUpload().
+// components/admin/vendor/ImageUploader.tsx
 /*eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { ImageIcon, Loader2, Upload, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { Loader2, Upload, X } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import ReactCrop, { type Crop, centerCrop, makeAspectCrop } from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 
 interface ImageUploaderProps {
-  value:      string;                    // current URL (controlled)
-  onChange:   (url: string) => void;     // called with new URL after upload
-  folder?:    string;                    // Cloudinary folder (default: admin-content)
-  label?:     string;
+  value: string;
+  onChange: (url: string) => void;
+  folder?: string;
+  label?: string;
   className?: string;
+  cropDimensions?: { width: number; height: number };
 }
 
 type UploadState = "idle" | "signing" | "uploading" | "done" | "error";
 
+function centerAspectCrop(mediaWidth: number, mediaHeight: number, aspect: number): Crop {
+  return centerCrop(
+    makeAspectCrop({ unit: "%", width: 90 }, aspect, mediaWidth, mediaHeight),
+    mediaWidth,
+    mediaHeight
+  );
+}
+
 export default function ImageUploader({
-  value, onChange, folder = "admin-content", label = "Featured Image", className,
+  value,
+  onChange,
+  folder = "admin-content",
+  label,
+  className,
+  cropDimensions,
 }: ImageUploaderProps) {
-  const [state,    setState]    = useState<UploadState>("idle");
+  const [state, setState] = useState<UploadState>("idle");
   const [progress, setProgress] = useState(0);
-  const [errMsg,   setErrMsg]   = useState<string | null>(null);
-  const [preview,  setPreview]  = useState<string | null>(null);
+  const [errMsg, setErrMsg] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const displayUrl = value || preview || null;
+  // Crop state
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [rawImageSrc, setRawImageSrc] = useState<string>("");
+  const [rawFile, setRawFile] = useState<File | null>(null);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<Crop>();
+  const imgRef = useRef<HTMLImageElement>(null);
 
-  const handleFile = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      setErrMsg("Please select an image file");
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setErrMsg("Image must be under 10 MB");
-      return;
-    }
+  const aspect = cropDimensions ? cropDimensions.width / cropDimensions.height : undefined;
 
-    // Local preview immediately
-    setPreview(URL.createObjectURL(file));
-    setErrMsg(null);
-    setState("signing");
-    setProgress(0);
+  // ─── Upload to Cloudinary ───────────────────────────────────────────────────
+  const uploadFile = useCallback(
+    async (file: File) => {
+      setState("signing");
+      setProgress(0);
+      setErrMsg(null);
 
-    try {
-      // 1. Get signature from our API
-      const signRes = await fetch("/api/admin/upload", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ folder }),
+      try {
+        const signRes = await fetch("/api/admin/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ folder }),
+        });
+        if (!signRes.ok) throw new Error("Failed to get upload signature");
+        const { signature, timestamp, apiKey, cloudName, folder: signedFolder } = await signRes.json();
+
+        setState("uploading");
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("api_key", apiKey);
+        formData.append("timestamp", String(timestamp));
+        formData.append("signature", signature);
+        formData.append("folder", signedFolder);
+
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`);
+
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
+          };
+
+          xhr.onload = () => {
+            if (xhr.status === 200) {
+              const data = JSON.parse(xhr.responseText);
+              onChange(data.secure_url);
+              setState("done");
+              resolve();
+            } else {
+              reject(new Error("Cloudinary upload failed"));
+            }
+          };
+
+          xhr.onerror = () => reject(new Error("Network error during upload"));
+          xhr.send(formData);
+        });
+      } catch (err: any) {
+        setErrMsg(err.message ?? "Upload failed");
+        setState("error");
+      }
+    },
+    [folder, onChange]
+  );
+
+  // ─── Get cropped blob from canvas ──────────────────────────────────────────
+  const getCroppedBlob = useCallback(
+    (image: HTMLImageElement, cropArea: Crop, mimeType: string, fileName: string): Promise<File> => {
+      return new Promise((resolve, reject) => {
+        const canvas = document.createElement("canvas");
+        const scaleX = image.naturalWidth / image.width;
+        const scaleY = image.naturalHeight / image.height;
+
+        // Output at requested cropDimensions if provided, else use cropped pixel size
+        const outputWidth = cropDimensions?.width ?? Math.round(cropArea.width * scaleX);
+        const outputHeight = cropDimensions?.height ?? Math.round(cropArea.height * scaleY);
+
+        canvas.width = outputWidth;
+        canvas.height = outputHeight;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("No canvas context"));
+
+        ctx.drawImage(
+          image,
+          cropArea.x * scaleX,
+          cropArea.y * scaleY,
+          cropArea.width * scaleX,
+          cropArea.height * scaleY,
+          0,
+          0,
+          outputWidth,
+          outputHeight
+        );
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return reject(new Error("Canvas toBlob failed"));
+            resolve(new File([blob], fileName, { type: mimeType }));
+          },
+          mimeType,
+          0.95
+        );
       });
-      if (!signRes.ok) throw new Error("Failed to get upload signature");
-      const { signature, timestamp, apiKey, cloudName, folder: signedFolder } = await signRes.json();
+    },
+    [cropDimensions]
+  );
 
-      // 2. Upload directly to Cloudinary
-      setState("uploading");
-      const formData = new FormData();
-      formData.append("file",       file);
-      formData.append("api_key",    apiKey);
-      formData.append("timestamp",  String(timestamp));
-      formData.append("signature",  signature);
-      formData.append("folder",     signedFolder);
-
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`);
-
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
-        };
-
-        xhr.onload = () => {
-          if (xhr.status === 200) {
-            const data = JSON.parse(xhr.responseText);
-            onChange(data.secure_url);
-            setPreview(null);
-            setState("done");
-            resolve();
-          } else {
-            reject(new Error("Cloudinary upload failed"));
-          }
-        };
-
-        xhr.onerror = () => reject(new Error("Network error during upload"));
-        xhr.send(formData);
-      });
-
-    } catch (err: any) {
-      setErrMsg(err.message ?? "Upload failed");
-      setState("error");
-      setPreview(null);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
-  };
-
+  // ─── File selected → open crop modal (or upload directly if no cropDimensions) ─
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) handleFile(file);
-    // Reset so same file can be re-selected
     e.target.value = "";
+    if (!file) return;
+
+    if (!cropDimensions) {
+      // No cropping needed — upload straight away
+      uploadFile(file);
+      return;
+    }
+
+    // Show crop modal
+    const reader = new FileReader();
+    reader.onload = () => {
+      setRawImageSrc(reader.result as string);
+      setRawFile(file);
+      setCrop(undefined); // will be set on image load
+      setCompletedCrop(undefined);
+      setCropModalOpen(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // ─── Image loaded inside modal → initialise centered crop ──────────────────
+  const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const { naturalWidth: width, naturalHeight: height } = e.currentTarget;
+    const initialCrop = aspect
+      ? centerAspectCrop(width, height, aspect)
+      : centerCrop({ unit: "%", width: 90, height: 90 }, width, height);
+    setCrop(initialCrop);
+    setCompletedCrop(initialCrop as Crop);
+  };
+
+  // ─── Confirm crop ───────────────────────────────────────────────────────────
+  const handleCropConfirm = async () => {
+    if (!imgRef.current || !completedCrop || !rawFile) return;
+
+    // Convert % crop to px if needed
+    const img = imgRef.current;
+    let pxCrop: Crop = completedCrop;
+
+    if (completedCrop.unit === "%") {
+      pxCrop = {
+        unit: "px",
+        x: (completedCrop.x / 100) * img.width,
+        y: (completedCrop.y / 100) * img.height,
+        width: (completedCrop.width / 100) * img.width,
+        height: (completedCrop.height / 100) * img.height,
+      };
+    }
+
+    try {
+      const croppedFile = await getCroppedBlob(img, pxCrop, rawFile.type, rawFile.name);
+      setCropModalOpen(false);
+      setRawImageSrc("");
+      await uploadFile(croppedFile);
+    } catch (err: any) {
+      setErrMsg(err.message ?? "Crop failed");
+    }
+  };
+
+  const handleCropCancel = () => {
+    setCropModalOpen(false);
+    setRawImageSrc("");
+    setRawFile(null);
   };
 
   const clear = () => {
     onChange("");
-    setPreview(null);
     setState("idle");
     setErrMsg(null);
     setProgress(0);
@@ -119,141 +228,112 @@ export default function ImageUploader({
   const isLoading = state === "signing" || state === "uploading";
 
   return (
-    <div className={cn("space-y-2", className)}>
-      {label && (
-        <p className="text-xs text-muted-foreground font-medium">{label}</p>
-      )}
+    <>
+      <div className={cn("space-y-2", className)}>
+        {label && <Label className="text-sm font-medium">{label}</Label>}
 
-      {/* ── Preview ──────────────────────────────────────────────────── */}
-      {displayUrl ? (
-        <div className="relative rounded-xl overflow-hidden border border-border bg-muted group">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={displayUrl}
-            alt="Preview"
-            className={cn(
-              "w-full h-48 object-cover transition-opacity",
-              isLoading && "opacity-40"
-            )}
-            onError={(e) => (e.currentTarget.style.display = "none")}
-          />
-
-          {/* Progress overlay */}
-          {isLoading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/60">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <div className="w-40 h-1.5 rounded-full bg-muted-foreground/20 overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-150"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {state === "signing" ? "Preparing…" : `${progress}%`}
-              </p>
+        {value && (
+          <div className="flex items-center gap-3 p-2 border rounded-lg bg-muted/30">
+            <img src={value} alt="Current" className="w-12 h-12 object-cover rounded border" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground truncate">{value.split("/").pop()}</p>
             </div>
-          )}
-
-          {/* Controls overlay — shown on hover when not loading */}
-          {!isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
-              <button
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-sm font-medium text-foreground shadow hover:bg-muted transition-colors"
-              >
-                <Upload className="h-3.5 w-3.5" /> Replace
-              </button>
-              <button
-                type="button"
-                onClick={clear}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-sm font-medium text-red-600 shadow hover:bg-red-50 transition-colors"
-              >
-                <X className="h-3.5 w-3.5" /> Remove
-              </button>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* ── Drop zone ──────────────────────────────────────────────── */
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => !isLoading && inputRef.current?.click()}
-          onKeyDown={(e) => e.key === "Enter" && !isLoading && inputRef.current?.click()}
-          onDrop={handleDrop}
-          onDragOver={(e) => e.preventDefault()}
-          className={cn(
-            "flex flex-col items-center justify-center gap-3 h-40 rounded-xl border-2 border-dashed",
-            "cursor-pointer transition-colors text-center px-4",
-            isLoading
-              ? "border-primary/40 bg-primary/5 cursor-default"
-              : "border-border hover:border-primary/50 hover:bg-muted/40"
-          )}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="h-7 w-7 animate-spin text-primary" />
-              <div className="w-40 h-1.5 rounded-full bg-muted-foreground/20 overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-150"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {state === "signing" ? "Preparing…" : `Uploading ${progress}%`}
-              </p>
-            </>
-          ) : (
-            <>
-              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                <ImageIcon className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  Click to upload or drag & drop
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  PNG, JPG, WEBP, GIF · max 10 MB
-                </p>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ── URL input fallback ─────────────────────────────────────── */}
-      <div className="flex items-center gap-2">
-        <div className="h-px flex-1 bg-border" />
-        <span className="text-[10px] text-muted-foreground uppercase tracking-wide">or paste URL</span>
-        <div className="h-px flex-1 bg-border" />
-      </div>
-      <input
-        type="url"
-        placeholder="https://res.cloudinary.com/…"
-        value={value}
-        onChange={(e) => { onChange(e.target.value); setState("idle"); setPreview(null); }}
-        className={cn(
-          "w-full h-9 rounded-md border border-input bg-background px-3 text-sm",
-          "placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+            <button
+              type="button"
+              onClick={clear}
+              disabled={isLoading}
+              className="p-1 hover:bg-destructive/10 rounded"
+            >
+              <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+            </button>
+          </div>
         )}
-      />
 
-      {/* ── Error ───────────────────────────────────────────────────── */}
-      {errMsg && (
-        <p className="text-xs text-red-600 flex items-center gap-1">
-          <X className="h-3 w-3" /> {errMsg}
-        </p>
-      )}
+        <div className="flex items-center gap-2">
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleInputChange}
+            disabled={isLoading}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => inputRef.current?.click()}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                {state === "signing" ? "Preparing..." : `${progress}%`}
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4 mr-2" />
+                Choose File
+              </>
+            )}
+          </Button>
+          {value && !isLoading && <span className="text-xs text-green-600">✓ Uploaded</span>}
+          {cropDimensions && !isLoading && !value && (
+            <span className="text-xs text-muted-foreground">
+              {cropDimensions.width}×{cropDimensions.height}px
+            </span>
+          )}
+        </div>
 
-      {/* Hidden file input */}
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleInputChange}
-      />
-    </div>
+        {errMsg && <p className="text-xs text-red-600">{errMsg}</p>}
+      </div>
+
+      {/* ─── Crop Modal ──────────────────────────────────────────────────────── */}
+      <Dialog open={cropModalOpen} onOpenChange={(open) => !open && handleCropCancel()}>
+        <DialogContent className="max-w-2xl w-full">
+          <DialogHeader>
+            <DialogTitle>
+              Crop Image
+              {cropDimensions && (
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  ({cropDimensions.width} × {cropDimensions.height}px)
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex justify-center max-h-[60vh] overflow-auto rounded-md bg-muted/20 p-2">
+            {rawImageSrc && (
+              <ReactCrop
+                crop={crop}
+                onChange={(_, percentCrop) => setCrop(percentCrop)}
+                onComplete={(c) => setCompletedCrop(c)}
+                aspect={aspect}
+                minWidth={10}
+                minHeight={10}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  ref={imgRef}
+                  src={rawImageSrc}
+                  alt="Crop preview"
+                  onLoad={onImageLoad}
+                  style={{ maxHeight: "55vh", maxWidth: "100%", objectFit: "contain" }}
+                />
+              </ReactCrop>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={handleCropCancel}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleCropConfirm} disabled={!completedCrop}>
+              Crop & Upload
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

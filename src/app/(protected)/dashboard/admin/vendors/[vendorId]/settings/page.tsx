@@ -7,80 +7,41 @@ import { getVendorById } from "@/actions/admin/vendor-actions";
 import { updateVendorSettings } from "@/actions/admin/vendor-settings-actions";
 import ImageUploader from "@/components/admin/vendor/ImageUploader";
 import RichTextEditor from "@/components/admin/vendor/RichTextEditor";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
-  Bell,
-  Building2,
-  Cloud,
   FileText,
-  Image,
+  ImageIcon,
   Layout,
   Loader2,
-  Mail,
   MapPin,
-  Save
+  Save,
+  Signature,
+  Smartphone,
+  User,
+  Volume2,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-// Form schema for vendor settings
 const vendorSettingsSchema = z.object({
-  // Basic Settings
-  deliverable: z.enum(["REPORT", "RAW_DATA", "BOTH"]),
-  s3BucketName: z.string().optional(),
-  rawDataEmail: z.string().email().optional(),
-  vendorAddress: z.string().optional(),
-  
-  // Privacy Settings
-  hidePersonalInfo: z.boolean(),
-  passwordProtectedReport: z.boolean(),
-  passwordRule: z.string(),
-  
-  // Page Settings
-  coverPage: z.boolean(),
-  skinCoverBackPage: z.boolean(),
-  blankPage: z.boolean(),
-  sectionImages: z.boolean(),
-  summaryPages: z.boolean(),
-  splitWellnessReport: z.boolean(),
-  
-  // Content
-  welcomeMessage: z.string().optional(),
-  about: z.string().optional(),
-  legalDisContent: z.string().optional(),
-  
-  // Signature
-  sigTitle: z.string().optional(),
-  sigName: z.string().optional(),
-  
-  // Notification Settings
-  notifyTarget: z.enum(["SUBJECT", "BUSINESS_PARTNER", "BOTH"]),
-  
-  // Images
   logoImg: z.string().optional(),
-  coverLogoImgName: z.string().optional(),
   coverPageImgName: z.string().optional(),
   backCoverPageImgName: z.string().optional(),
-  aboutImgName: z.string().optional(),
+  welcomeMessage: z.string().optional(),
+  sigName: z.string().optional(),
+  sigTitle: z.string().optional(),
   sigImgName: z.string().optional(),
+  aboutImgName: z.string().optional(),
+  about: z.string().optional(),
+  legalDisContent: z.string().optional(),
   dietPage1Img: z.string().optional(),
   dietPage2Img: z.string().optional(),
   fitnessPage1Img: z.string().optional(),
@@ -89,27 +50,153 @@ const vendorSettingsSchema = z.object({
   weightPage2Img: z.string().optional(),
   detoxPage1Img: z.string().optional(),
   detoxPage2Img: z.string().optional(),
-  imageOverview: z.string().optional(),
   skinCoverPageImg: z.string().optional(),
   skinBackCoverPageImg: z.string().optional(),
+  skinCoverLogo: z.boolean().optional(),
+  skinBackCoverLogo: z.boolean().optional(),
+  cardiometCoverPage: z.string().optional(),
   cardiometBackCoverPage: z.string().optional(),
+  cardiometCoverLogo: z.boolean().optional(),
+  cardiometBackCoverLogo: z.boolean().optional(),
   immunityCoverPage: z.string().optional(),
   immunityBackCoverPage: z.string().optional(),
+  immunityCoverLogo: z.boolean().optional(),
+  immunityBackCoverLogo: z.boolean().optional(),
   autoimmuneCoverPage: z.string().optional(),
   autoimmuneBackCoverPage: z.string().optional(),
+  autoimmuneCoverLogo: z.boolean().optional(),
+  autoimmuneBackCoverLogo: z.boolean().optional(),
   womanCoverPage: z.string().optional(),
   womanBackCoverPage: z.string().optional(),
+  womanCoverLogo: z.boolean().optional(),
+  womanBackCoverLogo: z.boolean().optional(),
   menCoverPage: z.string().optional(),
   menBackCoverPage: z.string().optional(),
+  menCoverLogo: z.boolean().optional(),
+  menBackCoverLogo: z.boolean().optional(),
   eyeCoverPage: z.string().optional(),
   eyeBackCoverPage: z.string().optional(),
+  eyeCoverLogo: z.boolean().optional(),
+  eyeBackCoverLogo: z.boolean().optional(),
   kidneyCoverPage: z.string().optional(),
   kidneyBackCoverPage: z.string().optional(),
+  kidneyCoverLogo: z.boolean().optional(),
+  kidneyBackCoverLogo: z.boolean().optional(),
   sleepCoverPage: z.string().optional(),
   sleepBackCoverPage: z.string().optional(),
+  sleepCoverLogo: z.boolean().optional(),
+  sleepBackCoverLogo: z.boolean().optional(),
+  pgxCoverPage: z.string().optional(),
+  pgxBackCoverPage: z.string().optional(),
+  pgxCoverLogo: z.boolean().optional(),
+  pgxBackCoverLogo: z.boolean().optional(),
+  vendorAddress: z.string().optional(),
+  coverPage: z.boolean(),
+  blankPage: z.boolean(),
+  sectionImages: z.boolean(),
+  summaryPages: z.boolean(),
 });
 
 type VendorSettingsFormValues = z.infer<typeof vendorSettingsSchema>;
+
+// ─── Reusable primitives ────────────────────────────────────────────────────
+
+/** Uniform section wrapper */
+const Section = ({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: React.ElementType;
+  title: string;
+  children: React.ReactNode;
+}) => (
+  <div className="border border-border rounded-lg overflow-hidden">
+    {/* section header */}
+    <div className="flex items-center gap-2 px-4 py-2.5 bg-muted/50 border-b border-border">
+      <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      <span className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+        {title}
+      </span>
+    </div>
+    <div className="p-4">{children}</div>
+  </div>
+);
+
+/** 2-column grid */
+const Grid2 = ({ children }: { children: React.ReactNode }) => (
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{children}</div>
+);
+
+/** Compact field label */
+const FieldLabel = ({ children }: { children: React.ReactNode }) => (
+  <p className="text-sm font-medium text-muted-foreground mb-1.5">{children}</p>
+);
+
+/** Toggle row */
+const ToggleRow = ({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) => (
+  <div className="flex items-center justify-between px-3 py-2 border border-border rounded-md bg-background">
+    <span className="text-sm text-foreground">{label}</span>
+    <Switch checked={checked} onCheckedChange={onChange} />
+  </div>
+);
+
+/** Report card (cover + back + 2 toggles) */
+const ReportCard = ({
+  title,
+  coverVal,
+  backVal,
+  coverLogo,
+  backLogo,
+  coverFolder,
+  backFolder,
+  onCover,
+  onBack,
+  onCoverLogo,
+  onBackLogo,
+}: any) => (
+  <div className="border border-border rounded-md overflow-hidden">
+    <div className="px-3 py-2 bg-muted/30 border-b border-border">
+      <span className="text-sm font-semibold text-foreground">{title}</span>
+    </div>
+    <div className="p-3 space-y-3">
+      <Grid2>
+        <div>
+          <FieldLabel>Cover Page</FieldLabel>
+          <ImageUploader
+            value={coverVal || ""}
+            onChange={onCover}
+            folder={coverFolder}
+            cropDimensions={{ width: 2480, height: 3507 }}
+          />
+        </div>
+        <div>
+          <FieldLabel>Back Cover</FieldLabel>
+          <ImageUploader
+            value={backVal || ""}
+            onChange={onBack}
+            folder={backFolder}
+            cropDimensions={{ width: 2480, height: 3507 }}
+          />
+        </div>
+      </Grid2>
+      <Grid2>
+        <ToggleRow label="Cover Logo" checked={coverLogo || false} onChange={onCoverLogo} />
+        <ToggleRow label="Back Cover Logo" checked={backLogo || false} onChange={onBackLogo} />
+      </Grid2>
+    </div>
+  </div>
+);
+
+// ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function VendorSettingsPage() {
   const params = useParams();
@@ -118,22 +205,34 @@ export default function VendorSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [vendor, setVendor] = useState<any>(null);
-  const [openAccordion, setOpenAccordion] = useState("basic");
 
   const form = useForm<VendorSettingsFormValues>({
     resolver: zodResolver(vendorSettingsSchema),
     defaultValues: {
-      deliverable: "REPORT",
-      hidePersonalInfo: false,
-      passwordProtectedReport: false,
-      passwordRule: "NAME4_DOB",
       coverPage: false,
-      skinCoverBackPage: false,
       blankPage: false,
       sectionImages: false,
       summaryPages: false,
-      splitWellnessReport: false,
-      notifyTarget: "BOTH",
+      skinCoverLogo: false,
+      skinBackCoverLogo: false,
+      cardiometCoverLogo: false,
+      cardiometBackCoverLogo: false,
+      immunityCoverLogo: false,
+      immunityBackCoverLogo: false,
+      autoimmuneCoverLogo: false,
+      autoimmuneBackCoverLogo: false,
+      womanCoverLogo: false,
+      womanBackCoverLogo: false,
+      menCoverLogo: false,
+      menBackCoverLogo: false,
+      eyeCoverLogo: false,
+      eyeBackCoverLogo: false,
+      kidneyCoverLogo: false,
+      kidneyBackCoverLogo: false,
+      sleepCoverLogo: false,
+      sleepBackCoverLogo: false,
+      pgxCoverLogo: false,
+      pgxBackCoverLogo: false,
     },
   });
 
@@ -148,19 +247,15 @@ export default function VendorSettingsPage() {
         setVendor(result);
         if (result.settings) {
           const settingsData = Object.fromEntries(
-            Object.entries(result.settings).map(([key, value]) => [key, value === null ? undefined : value])
+            Object.entries(result.settings).map(([k, v]) => [k, v === null ? undefined : v])
           ) as VendorSettingsFormValues;
           form.reset(settingsData);
         }
       } else if (result && "error" in result) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: result.error || "Failed to load vendor data",
-        });
+        toast({ variant: "destructive", title: "Error", description: (result as any).error || "Failed to load vendor data" });
       }
-    } catch (error) {
-      console.error("Error loading vendor:", error);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -171,23 +266,12 @@ export default function VendorSettingsPage() {
     try {
       const result = await updateVendorSettings(vendorId, data);
       if (result.success) {
-        toast({
-          title: "Success",
-          description: "Settings saved successfully",
-        });
+        toast({ title: "Saved", description: "Settings saved successfully" });
       } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: result.error || "Failed to save settings",
-        });
+        toast({ variant: "destructive", title: "Error", description: result.error || "Failed to save" });
       }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Something went wrong",
-      });
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "Something went wrong" });
     } finally {
       setSaving(false);
     }
@@ -196,459 +280,198 @@ export default function VendorSettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading vendor settings...</p>
+        <div className="text-center space-y-2">
+          <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Loading settings…</p>
         </div>
       </div>
     );
   }
 
+  const w = form.watch;
+  const sv = (field: any) => (val: any) => form.setValue(field, val);
+
   return (
-    <div className=" mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between sticky top-0 bg-background z-10 pb-4">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
+    // Force uniform text-sm everywhere on the page
+    <div className="text-sm container mx-auto pb-10 space-y-0">
+
+      {/* ── Sticky header ── */}
+      <div className="sticky top-0 z-20 bg-background border-b border-border flex items-center justify-between px-1 py-3 mb-4">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
             onClick={() => router.back()}
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Back</span>
+          </button>
+          <span className="text-border select-none">|</span>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Report Settings</h1>
-            <p className="text-muted-foreground mt-2">
-              Configure report settings for {vendor?.name} ({vendor?.vendorCode})
+            <p className="font-semibold text-sm text-foreground leading-tight">Report Settings</p>
+            <p className="text-muted-foreground leading-tight">
+              {vendor?.name} {vendor?.vendorCode && <span className="opacity-60">· {vendor.vendorCode}</span>}
             </p>
           </div>
         </div>
-        <Button onClick={form.handleSubmit(onSubmit)} disabled={saving} size="lg" className="gap-2">
-          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-          <Save className="h-4 w-4" />
-          Save All Settings
+        <Button
+          onClick={form.handleSubmit(onSubmit)}
+          disabled={saving}
+          size="sm"
+          className="gap-1.5 h-8 text-sm"
+        >
+          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+          Save
         </Button>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <Accordion 
-            type="single" 
-            value={openAccordion} 
-            onValueChange={setOpenAccordion}
-            className="space-y-4"
-          >
-            
-            {/* 1. Basic Information */}
-            <AccordionItem value="basic" className="border rounded-lg bg-card overflow-hidden">
-              <AccordionTrigger className="hover:no-underline px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <Building2 className="h-5 w-5 text-blue-600" />
-                  <div className="text-left">
-                    <h3 className="text-lg font-semibold">Basic Information</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Configure deliverables and address information
-                    </p>
-                  </div>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+
+          {/* 1 · A/C SETTINGS */}
+          <Section icon={ImageIcon} title="A/C Settings">
+            <Grid2>
+              <div>
+                <FieldLabel>Logo (150×60)</FieldLabel>
+                <ImageUploader value={w("logoImg") || ""} onChange={sv("logoImg")} folder="vendor-logos" cropDimensions={{ width: 150, height: 60 }} />
+              </div>
+              <div>
+                <FieldLabel>Cover Page (2480×3507)</FieldLabel>
+                <ImageUploader value={w("coverPageImgName") || ""} onChange={sv("coverPageImgName")} folder="vendor-covers" cropDimensions={{ width: 2480, height: 3507 }} />
+              </div>
+              <div>
+                <FieldLabel>Back Cover (2480×3507)</FieldLabel>
+                <ImageUploader value={w("backCoverPageImgName") || ""} onChange={sv("backCoverPageImgName")} folder="vendor-covers" cropDimensions={{ width: 2480, height: 3507 }} />
+              </div>
+            </Grid2>
+          </Section>
+
+          {/* 2 · WELCOME */}
+          <Section icon={Volume2} title="Welcome Content">
+            <RichTextEditor value={w("welcomeMessage") || ""} onChange={sv("welcomeMessage")} placeholder="Write a welcome message…" minHeight={140} />
+          </Section>
+
+          {/* 3 · SIGNATURE */}
+          <Section icon={Signature} title="Signature Section">
+            <div className="space-y-3">
+              <Grid2>
+                <div>
+                  <FieldLabel>Name</FieldLabel>
+                  <Input placeholder="Dr. John Doe" {...form.register("sigName")} className="h-8 text-sm" />
                 </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                <div className="space-y-6 pt-4">
-                  <div>
-                    <Label className="text-base font-semibold">Deliverable Type</Label>
-                    <RadioGroup
-                      value={form.watch("deliverable")}
-                      onValueChange={(value: any) => form.setValue("deliverable", value)}
-                      className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3"
-                    >
-                      <div className="flex items-center space-x-2 border rounded-lg p-3">
-                        <RadioGroupItem value="REPORT" id="report" />
-                        <Label htmlFor="report" className="cursor-pointer">Report Only</Label>
-                      </div>
-                      <div className="flex items-center space-x-2 border rounded-lg p-3">
-                        <RadioGroupItem value="RAW_DATA" id="raw_data" />
-                        <Label htmlFor="raw_data" className="cursor-pointer">Raw Data Only</Label>
-                      </div>
-                      <div className="flex items-center space-x-2 border rounded-lg p-3">
-                        <RadioGroupItem value="BOTH" id="both" />
-                        <Label htmlFor="both" className="cursor-pointer">Both Report & Raw Data</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-
-                  {form.watch("deliverable") !== "REPORT" && (
-                    <div className="space-y-4 bg-muted/30 p-4 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <Cloud className="h-4 w-4 text-muted-foreground" />
-                        <Label className="font-semibold">Data Delivery Configuration</Label>
-                      </div>
-                      <div>
-                        <Label>S3 Bucket Name</Label>
-                        <Input
-                          placeholder="your-bucket-name"
-                          {...form.register("s3BucketName")}
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label>Raw Data Email</Label>
-                        <Input
-                          type="email"
-                          placeholder="data@company.com"
-                          {...form.register("rawDataEmail")}
-                          className="mt-1"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  <Separator />
-
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      <Label className="font-semibold">Official Address</Label>
-                    </div>
-                    <textarea
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      rows={3}
-                      placeholder="Enter official address that will appear on reports..."
-                      {...form.register("vendorAddress")}
-                    />
-                  </div>
+                <div>
+                  <FieldLabel>Title</FieldLabel>
+                  <Input placeholder="Chief Scientific Officer" {...form.register("sigTitle")} className="h-8 text-sm" />
                 </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* 2. Branding & Images */}
-            <AccordionItem value="branding" className="border rounded-lg bg-card overflow-hidden">
-              <AccordionTrigger className="hover:no-underline px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <Image className="h-5 w-5 text-purple-600" />
-                  <div className="text-left">
-                    <h3 className="text-lg font-semibold">Branding & Images</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Upload logos, cover images, and section images
-                    </p>
-                  </div>
+              </Grid2>
+              <Grid2>
+                <div>
+                  <FieldLabel>Signature Image (200×100)</FieldLabel>
+                  <ImageUploader value={w("sigImgName") || ""} onChange={sv("sigImgName")} folder="vendor-signatures" cropDimensions={{ width: 200, height: 100 }} />
                 </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                <div className="space-y-8 pt-4">
-                  {/* Company Logos */}
-                  <div>
-                    <Label className="text-base font-semibold">Company Logos</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
-                      <ImageUploader
-                        label="Company Logo"
-                        value={form.watch("logoImg") || ""}
-                        onChange={(url) => form.setValue("logoImg", url)}
-                        folder="vendor-logos"
-                      />
-                      <ImageUploader
-                        label="Cover Logo"
-                        value={form.watch("coverLogoImgName") || ""}
-                        onChange={(url) => form.setValue("coverLogoImgName", url)}
-                        folder="vendor-cover-logos"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Cover Pages */}
-                  <div>
-                    <Label className="text-base font-semibold">Cover Pages</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
-                      <ImageUploader
-                        label="Front Cover"
-                        value={form.watch("coverPageImgName") || ""}
-                        onChange={(url) => form.setValue("coverPageImgName", url)}
-                        folder="vendor-covers"
-                      />
-                      <ImageUploader
-                        label="Back Cover"
-                        value={form.watch("backCoverPageImgName") || ""}
-                        onChange={(url) => form.setValue("backCoverPageImgName", url)}
-                        folder="vendor-covers"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Section Images */}
-                  <div>
-                    <Label className="text-base font-semibold">Section Images</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-                      <ImageUploader
-                        label="Diet Page 1"
-                        value={form.watch("dietPage1Img") || ""}
-                        onChange={(url) => form.setValue("dietPage1Img", url)}
-                        folder="vendor-section-images"
-                      />
-                      <ImageUploader
-                        label="Diet Page 2"
-                        value={form.watch("dietPage2Img") || ""}
-                        onChange={(url) => form.setValue("dietPage2Img", url)}
-                        folder="vendor-section-images"
-                      />
-                      <ImageUploader
-                        label="Fitness Page 1"
-                        value={form.watch("fitnessPage1Img") || ""}
-                        onChange={(url) => form.setValue("fitnessPage1Img", url)}
-                        folder="vendor-section-images"
-                      />
-                      <ImageUploader
-                        label="Fitness Page 2"
-                        value={form.watch("fitnessPage2Img") || ""}
-                        onChange={(url) => form.setValue("fitnessPage2Img", url)}
-                        folder="vendor-section-images"
-                      />
-                      <ImageUploader
-                        label="Weight Page 1"
-                        value={form.watch("weightPage1Img") || ""}
-                        onChange={(url) => form.setValue("weightPage1Img", url)}
-                        folder="vendor-section-images"
-                      />
-                      <ImageUploader
-                        label="Weight Page 2"
-                        value={form.watch("weightPage2Img") || ""}
-                        onChange={(url) => form.setValue("weightPage2Img", url)}
-                        folder="vendor-section-images"
-                      />
-                    </div>
-                  </div>
+                <div>
+                  <FieldLabel>About Image (200×200)</FieldLabel>
+                  <ImageUploader value={w("aboutImgName") || ""} onChange={sv("aboutImgName")} folder="vendor-about-images" cropDimensions={{ width: 200, height: 200 }} />
                 </div>
-              </AccordionContent>
-            </AccordionItem>
+              </Grid2>
+            </div>
+          </Section>
 
-            {/* 3. Report Configuration */}
-            <AccordionItem value="reports" className="border rounded-lg bg-card overflow-hidden">
-              <AccordionTrigger className="hover:no-underline px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <Layout className="h-5 w-5 text-orange-600" />
-                  <div className="text-left">
-                    <h3 className="text-lg font-semibold">Report Configuration</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Configure privacy, security, and layout options
-                    </p>
-                  </div>
+          {/* 4 · ABOUT */}
+          <Section icon={User} title="About Us">
+            <RichTextEditor value={w("about") || ""} onChange={sv("about")} placeholder="Tell about your company…" minHeight={140} />
+          </Section>
+
+          {/* 5 · LEGAL */}
+          <Section icon={FileText} title="Legal Disclaimer">
+            <RichTextEditor value={w("legalDisContent") || ""} onChange={sv("legalDisContent")} placeholder="Legal disclaimer text…" minHeight={110} />
+          </Section>
+
+          {/* 6 · REPORT COVER PAGES */}
+          <Section icon={Layout} title="Report Cover Pages">
+            <div className="space-y-4">
+              {[
+                { label: "Diet",    p1: "dietPage1Img",    p2: "dietPage2Img",    folder: "report-covers/diet" },
+                { label: "Fitness", p1: "fitnessPage1Img", p2: "fitnessPage2Img", folder: "report-covers/fitness" },
+                { label: "Weight",  p1: "weightPage1Img",  p2: "weightPage2Img",  folder: "report-covers/weight" },
+                { label: "Detox",   p1: "detoxPage1Img",   p2: "detoxPage2Img",   folder: "report-covers/detox" },
+              ].map(({ label, p1, p2, folder }) => (
+                <div key={label}>
+                  <p className="text-sm font-semibold text-foreground mb-2">{label}</p>
+                  <Grid2>
+                    <div>
+                      <FieldLabel>Cover Page 1</FieldLabel>
+                      <ImageUploader value={w(p1 as any) || ""} onChange={sv(p1)} folder={folder} cropDimensions={{ width: 2480, height: 3507 }} />
+                    </div>
+                    <div>
+                      <FieldLabel>Cover Page 2</FieldLabel>
+                      <ImageUploader value={w(p2 as any) || ""} onChange={sv(p2)} folder={folder} cropDimensions={{ width: 2480, height: 3507 }} />
+                    </div>
+                  </Grid2>
                 </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                <div className="space-y-6 pt-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between rounded-lg border p-4">
-                      <div>
-                        <Label className="font-semibold">Hide Personal Information</Label>
-                        <p className="text-sm text-muted-foreground">Mask patient data in reports</p>
-                      </div>
-                      <Switch
-                        checked={form.watch("hidePersonalInfo")}
-                        onCheckedChange={(checked) => form.setValue("hidePersonalInfo", checked)}
-                      />
-                    </div>
+              ))}
+            </div>
+          </Section>
 
-                    <div className="flex items-center justify-between rounded-lg border p-4">
-                      <div>
-                        <Label className="font-semibold">Password Protect Reports</Label>
-                        <p className="text-sm text-muted-foreground">Require password to access reports</p>
-                      </div>
-                      <Switch
-                        checked={form.watch("passwordProtectedReport")}
-                        onCheckedChange={(checked) => form.setValue("passwordProtectedReport", checked)}
-                      />
-                    </div>
+          {/* 7-16 · SPECIALISED REPORT SETTINGS */}
+          <Section icon={Layout} title="Specialised Report Settings">
+            <div className="space-y-3">
+              {[
+                { title: "Skin",        cover: "skinCoverPageImg",    back: "skinBackCoverPageImg",    cl: "skinCoverLogo",        bl: "skinBackCoverLogo",        folder: "report-covers/skin" },
+                { title: "Cardiometric",cover: "cardiometCoverPage",  back: "cardiometBackCoverPage",  cl: "cardiometCoverLogo",   bl: "cardiometBackCoverLogo",   folder: "report-covers/cardiometric" },
+                { title: "Immunity",    cover: "immunityCoverPage",   back: "immunityBackCoverPage",   cl: "immunityCoverLogo",    bl: "immunityBackCoverLogo",    folder: "report-covers/immunity" },
+                { title: "Autoimmune",  cover: "autoimmuneCoverPage", back: "autoimmuneBackCoverPage", cl: "autoimmuneCoverLogo",  bl: "autoimmuneBackCoverLogo",  folder: "report-covers/autoimmune" },
+                { title: "Woman's",     cover: "womanCoverPage",      back: "womanBackCoverPage",      cl: "womanCoverLogo",       bl: "womanBackCoverLogo",       folder: "report-covers/woman" },
+                { title: "Men's",       cover: "menCoverPage",        back: "menBackCoverPage",        cl: "menCoverLogo",         bl: "menBackCoverLogo",         folder: "report-covers/men" },
+                { title: "Eye",         cover: "eyeCoverPage",        back: "eyeBackCoverPage",        cl: "eyeCoverLogo",         bl: "eyeBackCoverLogo",         folder: "report-covers/eye" },
+                { title: "Kidney",      cover: "kidneyCoverPage",     back: "kidneyBackCoverPage",     cl: "kidneyCoverLogo",      bl: "kidneyBackCoverLogo",      folder: "report-covers/kidney" },
+                { title: "Sleep",       cover: "sleepCoverPage",      back: "sleepBackCoverPage",      cl: "sleepCoverLogo",       bl: "sleepBackCoverLogo",       folder: "report-covers/sleep" },
+                { title: "PGx",         cover: "pgxCoverPage",        back: "pgxBackCoverPage",        cl: "pgxCoverLogo",         bl: "pgxBackCoverLogo",         folder: "report-covers/pgx" },
+              ].map((r) => (
+                <ReportCard
+                  key={r.title}
+                  title={r.title}
+                  coverVal={w(r.cover as any)}
+                  backVal={w(r.back as any)}
+                  coverLogo={w(r.cl as any)}
+                  backLogo={w(r.bl as any)}
+                  coverFolder={r.folder}
+                  backFolder={r.folder}
+                  onCover={sv(r.cover)}
+                  onBack={sv(r.back)}
+                  onCoverLogo={sv(r.cl)}
+                  onBackLogo={sv(r.bl)}
+                />
+              ))}
+            </div>
+          </Section>
 
-                    {form.watch("passwordProtectedReport") && (
-                      <div className="ml-6">
-                        <Label>Password Rule</Label>
-                        <Select
-                          value={form.watch("passwordRule")}
-                          onValueChange={(value) => form.setValue("passwordRule", value)}
-                        >
-                          <SelectTrigger className="mt-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="NAME4_DOB">Name (4 chars) + DOB</SelectItem>
-                            <SelectItem value="NAME6_PHONE">Name (6 chars) + Phone</SelectItem>
-                            <SelectItem value="EMAIL">Email Address</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                  </div>
+          {/* 17 · VENDOR ADDRESS */}
+          <Section icon={MapPin} title="Vendor Address">
+            <RichTextEditor value={w("vendorAddress") || ""} onChange={sv("vendorAddress")} placeholder="Official address for reports…" minHeight={100} />
+          </Section>
 
-                  <Separator />
+          {/* 18 · ELECTRONIC REPORT SETTINGS */}
+          <Section icon={Smartphone} title="Electronic Report Settings">
+            <Grid2>
+              <ToggleRow label="Cover Page Back"  checked={w("coverPage")}    onChange={sv("coverPage")} />
+              <ToggleRow label="Blank Page"        checked={w("blankPage")}    onChange={sv("blankPage")} />
+              <ToggleRow label="Section Images"    checked={w("sectionImages")} onChange={sv("sectionImages")} />
+              <ToggleRow label="Summary Pages"     checked={w("summaryPages")} onChange={sv("summaryPages")} />
+            </Grid2>
+          </Section>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex items-center justify-between rounded-lg border p-4">
-                      <div>
-                        <Label>Cover Page</Label>
-                        <p className="text-sm text-muted-foreground">Include cover page</p>
-                      </div>
-                      <Switch
-                        checked={form.watch("coverPage")}
-                        onCheckedChange={(checked) => form.setValue("coverPage", checked)}
-                      />
-                    </div>
+          {/* ── Bottom action bar ── */}
+          <div className="sticky bottom-0 bg-background border-t border-border flex justify-end gap-2 px-1 py-3">
+            <Button type="button" variant="outline" size="sm" className="h-8 text-sm" onClick={() => router.back()}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving} size="sm" className="h-8 text-sm gap-1.5">
+              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+              Save Settings
+            </Button>
+          </div>
 
-                    <div className="flex items-center justify-between rounded-lg border p-4">
-                      <div>
-                        <Label>Summary Pages</Label>
-                        <p className="text-sm text-muted-foreground">Include summary pages</p>
-                      </div>
-                      <Switch
-                        checked={form.watch("summaryPages")}
-                        onCheckedChange={(checked) => form.setValue("summaryPages", checked)}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-lg border p-4">
-                      <div>
-                        <Label>Blank Pages</Label>
-                        <p className="text-sm text-muted-foreground">Add blank pages between sections</p>
-                      </div>
-                      <Switch
-                        checked={form.watch("blankPage")}
-                        onCheckedChange={(checked) => form.setValue("blankPage", checked)}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-lg border p-4">
-                      <div>
-                        <Label>Section Images</Label>
-                        <p className="text-sm text-muted-foreground">Include section images</p>
-                      </div>
-                      <Switch
-                        checked={form.watch("sectionImages")}
-                        onCheckedChange={(checked) => form.setValue("sectionImages", checked)}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* 4. Content Management */}
-            <AccordionItem value="content" className="border rounded-lg bg-card overflow-hidden">
-              <AccordionTrigger className="hover:no-underline px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <FileText className="h-5 w-5 text-green-600" />
-                  <div className="text-left">
-                    <h3 className="text-lg font-semibold">Content Management</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Manage messages, about section, and signatures
-                    </p>
-                  </div>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                <div className="space-y-6 pt-4">
-                  <div>
-                    <Label className="text-base font-semibold">Welcome Message</Label>
-                    <RichTextEditor
-                      value={form.watch("welcomeMessage") || ""}
-                      onChange={(html) => form.setValue("welcomeMessage", html)}
-                      placeholder="Write a welcome message for the report..."
-                      minHeight={200}
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="text-base font-semibold">About Section</Label>
-                    <RichTextEditor
-                      value={form.watch("about") || ""}
-                      onChange={(html) => form.setValue("about", html)}
-                      placeholder="Tell about your company..."
-                      minHeight={250}
-                    />
-                  </div>
-
-                  <div>
-                    <ImageUploader
-                      label="About Section Image"
-                      value={form.watch("aboutImgName") || ""}
-                      onChange={(url) => form.setValue("aboutImgName", url)}
-                      folder="vendor-about-images"
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="text-base font-semibold">Legal Disclaimer</Label>
-                    <RichTextEditor
-                      value={form.watch("legalDisContent") || ""}
-                      onChange={(html) => form.setValue("legalDisContent", html)}
-                      placeholder="Legal disclaimer text..."
-                      minHeight={150}
-                    />
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <Label className="text-base font-semibold">Signature Configuration</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-                      <div>
-                        <Label>Signature Title</Label>
-                        <Input placeholder="e.g., Chief Scientific Officer" {...form.register("sigTitle")} />
-                      </div>
-                      <div>
-                        <Label>Signature Name</Label>
-                        <Input placeholder="e.g., Dr. John Doe" {...form.register("sigName")} />
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <ImageUploader
-                        label="Signature Image"
-                        value={form.watch("sigImgName") || ""}
-                        onChange={(url) => form.setValue("sigImgName", url)}
-                        folder="vendor-signatures"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* 5. Notifications */}
-            <AccordionItem value="notifications" className="border rounded-lg bg-card overflow-hidden">
-              <AccordionTrigger className="hover:no-underline px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <Bell className="h-5 w-5 text-yellow-600" />
-                  <div className="text-left">
-                    <h3 className="text-lg font-semibold">Notifications</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Configure notification recipients
-                    </p>
-                  </div>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                <div className="pt-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <Label className="font-semibold">Report Release Notifications</Label>
-                  </div>
-                  <Select
-                    value={form.watch("notifyTarget")}
-                    onValueChange={(value: any) => form.setValue("notifyTarget", value)}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="SUBJECT">Patient Only</SelectItem>
-                      <SelectItem value="BUSINESS_PARTNER">Business Partner Only</SelectItem>
-                      <SelectItem value="BOTH">Both Patient & Business Partner</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Choose who should receive notifications when reports are released
-                  </p>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
         </form>
       </Form>
     </div>
