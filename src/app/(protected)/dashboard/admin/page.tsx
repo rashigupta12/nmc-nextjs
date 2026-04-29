@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Building2, Package, DollarSign, TrendingUp, TrendingDown, FileText } from "lucide-react";
 
 interface DashboardStats {
-  totalVendors: number;
+  totalBusinessPartners: number;
   totalUsers: number;
   totalSamples: number;
   totalRevenue: number;
@@ -16,7 +16,7 @@ interface DashboardStats {
 
 export default function AdminDashboardHome() {
   const [stats, setStats] = useState<DashboardStats>({
-    totalVendors: 0,
+    totalBusinessPartners: 0,
     totalUsers: 0,
     totalSamples: 0,
     totalRevenue: 0,
@@ -37,7 +37,7 @@ export default function AdminDashboardHome() {
       
       // Mock data for now
       setStats({
-        totalVendors: 24,
+        totalBusinessPartners: 24,
         totalUsers: 156,
         totalSamples: 1234,
         totalRevenue: 124567,
@@ -53,8 +53,8 @@ export default function AdminDashboardHome() {
 
   const statCards = [
     {
-      title: "Total Vendors",
-      value: stats.totalVendors,
+      title: "Total Business Partners",
+      value: stats.totalBusinessPartners,
       icon: Building2,
       color: "bg-blue-500",
       trend: "+12%",
@@ -160,7 +160,7 @@ export default function AdminDashboardHome() {
                 >
                   <div>
                     <p className="font-medium">Order #ORD-{23042610000 + item}</p>
-                    <p className="text-sm text-gray-500">Vendor: Health Labs Inc.</p>
+                    <p className="text-sm text-gray-500">Business Partner: Health Labs Inc.</p>
                   </div>
                   <div className="text-right">
                     <p className="font-medium text-green-600">₹12,500</p>
@@ -209,7 +209,7 @@ export default function AdminDashboardHome() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <button className="p-4 text-center border rounded-lg hover:bg-gray-50 transition-colors">
               <Building2 className="h-6 w-6 mx-auto mb-2 text-blue-600" />
-              <p className="text-sm font-medium">Add Vendor</p>
+              <p className="text-sm font-medium">Add Business Partner</p>
             </button>
             <button className="p-4 text-center border rounded-lg hover:bg-gray-50 transition-colors">
               <Package className="h-6 w-6 mx-auto mb-2 text-green-600" />

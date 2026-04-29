@@ -3,7 +3,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { createVendor } from "@/actions/admin/vendor-actions";
@@ -19,33 +19,35 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
+const pointOfContactSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  designation: z.string().optional(),
+  email: z.string().email("Invalid email").optional().or(z.literal("")),
+  phoneNumber: z.string().optional(),
+  isPrimary: z.boolean().default(false),
+});
+
 const vendorSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  contactNo: z.string().min(10, "Contact number must be at least 10 digits"),
-  gender: z.enum(["M", "F", "O"]),
+  name: z.string().min(2, "Company Name is required"),
   address: z.string().min(5, "Address is required"),
+  email: z.string().email("Invalid email address").optional().or(z.literal("")),
+  contactNo: z.string().optional(),
+  website: z.string().url("Invalid URL").optional().or(z.literal("")),
+  gstNumber: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
   country: z.string().optional(),
   zipCode: z.string().optional(),
-  website: z.string().url("Invalid URL").optional().or(z.literal("")),
-  gstNumber: z.string().optional(),
-  cinNumber: z.string().optional(),
-  vatNumber: z.string().optional(),
-  costCentreNo: z.string().optional(),
-  mrNo: z.string().optional(),
-  remark: z.string().optional(),
+  pointOfContacts: z.array(pointOfContactSchema).min(1, "At least one Point of Contact is required"),
 });
 
 type VendorFormValues = z.infer<typeof vendorSchema>;
@@ -62,34 +64,48 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
     resolver: zodResolver(vendorSchema),
     defaultValues: {
       name: "",
+      address: "",
       email: "",
       contactNo: "",
-      gender: "M",
-      address: "",
+      website: "",
+      gstNumber: "",
       city: "",
       state: "",
       country: "India",
       zipCode: "",
-      website: "",
-      gstNumber: "",
-      cinNumber: "",
-      vatNumber: "",
-      costCentreNo: "",
-      mrNo: "",
-      remark: "",
+      pointOfContacts: [
+        { name: "", designation: "", email: "", phoneNumber: "", isPrimary: true }
+      ],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "pointOfContacts",
   });
 
   async function onSubmit(data: VendorFormValues) {
     setIsLoading(true);
     try {
       const formData = new FormData();
-      Object.entries(data).forEach(([key, value]) => {
-        if (value) formData.append(key, value);
-      });
+      
+      // Append scalar fields
+      if (data.name) formData.append('name', data.name);
+      if (data.address) formData.append('address', data.address);
+      if (data.email) formData.append('email', data.email);
+      if (data.contactNo) formData.append('contactNo', data.contactNo);
+      if (data.website) formData.append('website', data.website);
+      if (data.gstNumber) formData.append('gstNumber', data.gstNumber);
+      if (data.city) formData.append('city', data.city);
+      if (data.state) formData.append('state', data.state);
+      if (data.country) formData.append('country', data.country);
+      if (data.zipCode) formData.append('zipCode', data.zipCode);
+      
+      // Append array field as JSON
+      formData.append('pointOfContacts', JSON.stringify(data.pointOfContacts));
 
       const result = await createVendor(formData);
-      
+
       if (result.error) {
         toast({
           variant: "destructive",
@@ -122,7 +138,7 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
           <CardHeader>
             <CardTitle>Basic Information</CardTitle>
             <CardDescription>
-              Enter the vendor &apos;s basic details
+              Enter the Business Partner's basic details
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -146,9 +162,13 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email *</FormLabel>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="contact@company.com" {...field} />
+                      <Input
+                        type="email"
+                        placeholder="contact@company.com"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -160,7 +180,7 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
                 name="contactNo"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Contact Number *</FormLabel>
+                    <FormLabel>Contact Number</FormLabel>
                     <FormControl>
                       <Input placeholder="+91 1234567890" {...field} />
                     </FormControl>
@@ -171,22 +191,13 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
 
               <FormField
                 control={form.control}
-                name="gender"
+                name="website"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Contact Person Gender *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="M">Male</SelectItem>
-                        <SelectItem value="F">Female</SelectItem>
-                        <SelectItem value="O">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>Website</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://company.com" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -199,33 +210,19 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
           <CardHeader>
             <CardTitle>Address Information</CardTitle>
             <CardDescription>
-              Vendor &apos;s registered office address
+              Business Partner's registered office address
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address *</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Street address" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="city"
+                name="country"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>City</FormLabel>
+                    <FormLabel>Country</FormLabel>
                     <FormControl>
-                      <Input placeholder="City" {...field} />
+                      <Input placeholder="Country" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -248,12 +245,12 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
 
               <FormField
                 control={form.control}
-                name="country"
+                name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Country</FormLabel>
+                    <FormLabel>City</FormLabel>
                     <FormControl>
-                      <Input placeholder="Country" {...field} />
+                      <Input placeholder="City" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -274,14 +271,28 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Address *</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Street address" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Business Information</CardTitle>
+            <CardTitle>Tax Information</CardTitle>
             <CardDescription>
-              Tax and registration details
+              Business registration details
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -299,91 +310,95 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="cinNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>CIN Number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="CIN number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="vatNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>VAT Number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="VAT number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="website"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Website</FormLabel>
-                    <FormControl>
-                      <Input placeholder="https://company.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="costCentreNo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cost Centre Number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Cost centre number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="mrNo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>MR Number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="MR number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
+          </CardContent>
+        </Card>
 
-            <FormField
-              control={form.control}
-              name="remark"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Remarks</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Additional notes" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <Card>
+          <CardHeader>
+            <CardTitle>Point of Contacts</CardTitle>
+            <CardDescription>
+              Add contact persons for this Business Partner. At least one contact is required.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {fields.map((field, index) => (
+              <div key={field.id} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end border p-4 rounded-lg bg-gray-50">
+                <FormField
+                  control={form.control}
+                  name={`pointOfContacts.${index}.name`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Contact name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`pointOfContacts.${index}.designation`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Designation</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Designation" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`pointOfContacts.${index}.email`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="Email" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name={`pointOfContacts.${index}.phoneNumber`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Phone number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex gap-2">
+                  {fields.length > 1 && (
+                    <Button 
+                      type="button" 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => remove(index)}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => append({ name: "", designation: "", email: "", phoneNumber: "", isPrimary: false })}
+              className="w-full"
+            >
+              + Add Another Point of Contact
+            </Button>
           </CardContent>
         </Card>
 
@@ -393,7 +408,7 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
           </Button>
           <Button type="submit" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create Vendor
+            Create Business Partner
           </Button>
         </div>
       </form>

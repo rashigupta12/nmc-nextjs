@@ -4,23 +4,25 @@
 
 ## 🏰 Business Partner — Core Entity
 
-* [ ] 🔴 Rename "Vendor" to "Business Partner" across entire application
-* [ ] 🔴 Business Partner form fields: Company Name *(mandatory)*, Address *(mandatory)*
+
+* [x] 🔴 Rename "Vendor" to "Business Partner" across entire application
+* [x] 🔴 Vendor ID Update to Business Partner.
+* [x] 🔴 Business Partner form fields: Company Name *(mandatory)*, Address *(mandatory)*
 * [ ] 🔴 Active / Inactive status flag on Business Partner
 * [ ] 🔴 Replace Delete with Deactivate — no hard deletes from admin panel
 * [ ] 🔴 Single toggle button: Activate / Deactivate *(one button, toggle-case)*
 * [ ] 🔴 Guard: all BP actions / functionality disabled when BP is inactive; admin must activate first
 * [x] 🔴 ✨ Remove NextJS Library references from the application
-* [ ] 🔴 ✨ Remove GST Number field from Business Partner form
-* [ ] 🔴 ✨ Remove Website field from Business Partner form
-* [ ] 🔴 ✨ Remove Org field — only listed fields to be kept on BP form
+* [x] 🔴 ✨ GST Number field from Business Partner form
+* [x] 🔴 ✨ Website field from Business Partner form
+* [x] 🔴 ✨ Org field — only listed fields to be kept on BP form
 
 ## 👥 Point of Contact (PoC)
 
-* [ ] 🔴 PoC sub-entity under Business Partner: Name, Designation, Email, Phone Number
-* [ ] 🔴 Support multiple PoCs per Business Partner
-* [ ] 🔴 Minimum 1 PoC mandatory before BP can be saved / activated
-* [ ] 🟡 Add / Edit / Remove PoC entries from BP detail page
+* [x] 🔴 PoC sub-entity under Business Partner: Name, Designation, Email, Phone Number
+* [x] 🔴 Support multiple PoCs per Business Partner
+* [x] 🔴 Minimum 1 PoC mandatory before BP can be saved / activated
+* [x] 🟡 Add / Edit / Remove PoC entries from BP detail page
 
 ## ⚙️ Business Partner Settings
 
