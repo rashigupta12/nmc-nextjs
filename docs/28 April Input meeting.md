@@ -4,7 +4,6 @@
 
 ## 🏰 Business Partner — Core Entity
 
-
 * [x] 🔴 Rename "Vendor" to "Business Partner" across entire application
 * [x] 🔴 Vendor ID Update to Business Partner.
 * [x] 🔴 Business Partner form fields: Company Name *(mandatory)*, Address *(mandatory)*
@@ -23,6 +22,11 @@
 * [x] 🔴 Support multiple PoCs per Business Partner
 * [x] 🔴 Minimum 1 PoC mandatory before BP can be saved / activated
 * [x] 🟡 Add / Edit / Remove PoC entries from BP detail page
+* [ ] Use Country state city package
+* [ ] move GST to company detils
+  * [ ] after contact website
+* [ ] Reduce + button size, and move it to top the card
+* [ ] From 2 col to 3 col in addrss form
 
 ## ⚙️ Business Partner Settings
 
