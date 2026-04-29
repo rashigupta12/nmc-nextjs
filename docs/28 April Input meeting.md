@@ -7,10 +7,10 @@
 * [x] 🔴 Rename "Vendor" to "Business Partner" across entire application
 * [x] 🔴 Vendor ID Update to Business Partner.
 * [x] 🔴 Business Partner form fields: Company Name *(mandatory)*, Address *(mandatory)*
-* [ ] 🔴 Active / Inactive status flag on Business Partner
-* [ ] 🔴 Replace Delete with Deactivate — no hard deletes from admin panel
-* [ ] 🔴 Single toggle button: Activate / Deactivate *(one button, toggle-case)*
-* [ ] 🔴 Guard: all BP actions / functionality disabled when BP is inactive; admin must activate first
+* [x] 🔴 Active / Inactive status flag on Business Partner
+* [x] 🔴 Replace Delete with Deactivate — no hard deletes from admin panel
+* [x] 🔴 Single toggle button: Activate / Deactivate *(one button, toggle-case)*
+* [x] 🔴 Guard: all BP actions / functionality disabled when BP is inactive; admin must activate first
 * [x] 🔴 ✨ Remove NextJS Library references from the application
 * [x] 🔴 ✨ GST Number field from Business Partner form
 * [x] 🔴 ✨ Website field from Business Partner form
