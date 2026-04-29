@@ -165,7 +165,7 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
                 )}
               />
 
-              <FormField
+              {/* <FormField
                 control={form.control}
                 name="email"
                 render={({ field }) => (
@@ -195,7 +195,7 @@ export function VendorForm({ onSuccess }: VendorFormProps) {
                     <FormMessage />
                   </FormItem>
                 )}
-              />
+              /> */}
 
               <FormField
                 control={form.control}
