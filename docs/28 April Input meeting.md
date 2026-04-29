@@ -22,11 +22,11 @@
 * [x] 🔴 Support multiple PoCs per Business Partner
 * [x] 🔴 Minimum 1 PoC mandatory before BP can be saved / activated
 * [x] 🟡 Add / Edit / Remove PoC entries from BP detail page
-* [ ] Use Country state city package
-* [ ] move GST to company detils
-  * [ ] after contact website
-* [ ] Reduce + button size, and move it to top the card
-* [ ] From 2 col to 3 col in addrss form
+* [x] Use Country state city package
+* [x] move GST to company detils
+  * [x] after contact website
+* [x] Reduce + button size, and move it to top the card
+* [x] From 2 col to 3 col in addrss form
 
 ## ⚙️ Business Partner Settings
 
