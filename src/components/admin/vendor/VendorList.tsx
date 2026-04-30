@@ -89,7 +89,6 @@ export function VendorList() {
               <TableHead>Business Partner Code</TableHead>
               <TableHead>Company Name</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Contact</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Created At</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -101,7 +100,6 @@ export function VendorList() {
                 <TableCell className="font-medium">{vendor.vendorCode}</TableCell>
                 <TableCell>{vendor.name}</TableCell>
                 <TableCell>{vendor.email}</TableCell>
-                <TableCell>{vendor.contactNo}</TableCell>
                 <TableCell>
                   <Badge 
                     variant={vendor.status === "ACTIVE" ? "default" : "secondary"}
