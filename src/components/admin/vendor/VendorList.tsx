@@ -49,11 +49,11 @@ export function VendorList() {
   }
 
   const handleViewDetails = (vendorId: string) => {
-    router.push(`/dashboard/admin/vendors/${vendorId}`);
+    router.push(`/dashboard/admin/business/${vendorId}`);
   };
 
   const handleSettings = (vendorId: string) => {
-    router.push(`/dashboard/admin/vendors/${vendorId}/settings`);
+    router.push(`/dashboard/admin/business/${vendorId}/settings`);
   };
 
   if (loading) {

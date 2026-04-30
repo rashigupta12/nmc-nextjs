@@ -159,16 +159,16 @@ export default function AdminLayout({
             </Link>
 
             {/* Business Partners */}
-            <Link href="/dashboard/admin/vendors">
+            <Link href="/dashboard/admin/business">
               <button
                 className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                  pathname.startsWith("/dashboard/admin/vendors")
+                  pathname.startsWith("/dashboard/admin/business")
                     ? "bg-blue-50 text-blue-700"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
                 <Building2
-                  className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/vendors") ? "text-blue-700" : ""}`}
+                  className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/business") ? "text-blue-700" : ""}`}
                 />
                 <span className="text-sm font-medium">Business Partners</span>
               </button>
