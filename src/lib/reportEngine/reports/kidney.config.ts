@@ -1,96 +1,86 @@
+// lib/reportEngine/reports/kidney.config.ts
 // ============================================================
 // Report Config — Kidney Health
 //
-// Pattern: Same as Eye Health (TestMaster-based + patientAdditional)
+// Updated for dual database architecture
 // ============================================================
-
 
 import { buildKidneyReportHtml } from '@/lib/kidneyHeadlthPdf/kidneyTemplate';
 import { ReportTypeConfig } from '../types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
+// TODO: Replace with actual UUID from Neon test_catalog table
+const TEST_UUID = '00000000-0000-0000-0000-000000000003'; // Replace with actual UUID
+
 export const kidneyReportConfig: ReportTypeConfig = {
-  // ── Identity ──────────────────────────────────────────────────────────────
-  id:    'kidney-health',
+  id: 'kidney-health',
   label: 'Kidney Health Report',
 
-  // ── Data sourcing ─────────────────────────────────────────────────────────
   pageDataSource: {
-    type:          'testMaster',
-    testId:        'NMC-KH01',           // Kidney Health test ID from TestMaster
+    type: 'testMaster',
+    testId: TEST_UUID,  // UUID from Neon test_catalog
     pageDataModel: 'GenePageData',
     pageDescModel: 'GenePageDesc',
   },
 
-  // Mongoose model name for the patient additional collection
-  patientAdditionalModel: 'PatientAdditionalKidneyHealth',
+  patientAdditionalModel: 'PatientFinalReport',
 
-  // ── Sections ──────────────────────────────────────────────────────────────
   sections: [],
 
-  // ── Auto-fill mappings ────────────────────────────────────────────────────
   autoFillMappings: [
-    // Autosomal Dominant Polycystic Kidney Disease
     {
-      match:     'Autosomal Dominant Polycystic Kidney Disease',
-      statusKey: 'autosomalDominantStatus',
-      recKey:    'autosomalDominantRecommendation',
-      interKey:  'autosomalDominantInterpritation',
+      match: 'Autosomal Dominant Polycystic Kidney Disease',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Hypomagnesemia (Low Magnesium)
     {
-      match:     'Hypomagnesemia (Low Magnesium)',
-      statusKey: 'hypomagnesemiaStatus',
-      recKey:    'hypomagnesemiaRecommendation',
-      interKey:  'hypomagnesemiaInterpritation',
+      match: 'Hypomagnesemia (Low Magnesium)',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Chronic Kidney Disease (CKD)
     {
-      match:     'Chronic Kidney Disease (CKD)',
-      statusKey: 'chronicKidneyStatus',
-      recKey:    'chronicKidneyRecommendation',
-      interKey:  'chronicKidneyInterpritation',
+      match: 'Chronic Kidney Disease (CKD)',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Childhood Steroid-Sensitive Nephrotic Syndrome
     {
-      match:     'Childhood Steroid-Sensitive Nephrotic Syndrome',
-      statusKey: 'steroidSensitiveStatus',
-      recKey:    'steroidSensitiveRecommendation',
-      interKey:  'steroidSensitiveInterpretation',
+      match: 'Childhood Steroid-Sensitive Nephrotic Syndrome',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Idiopathic Membranous Nephropathy
     {
-      match:     'Idiopathic Membranous Nephropathy',
-      statusKey: 'idiopathicStatus',
-      recKey:    'idiopathicRecommendation',
-      interKey:  'idiopathicInterpretation',
+      match: 'Idiopathic Membranous Nephropathy',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Renal Calculi (Kidney Stone Disease)
     {
-      match:     'Renal calculi (Kidney Stone Disease)',
-      statusKey: 'renalCalculiStatus',
-      recKey:    'renalCalculiRecommendation',
-      interKey:  'renalCalculiInterpretation',
+      match: 'Renal calculi (Kidney Stone Disease)',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
   ],
 
-  // ── Vendor / branding ─────────────────────────────────────────────────────
   vendor: {
-    vendorName:    'NMC Genetics',
-    vendorId:      'NMC',
-    themeColor:    '#6b7f8c',            // Kidney Health theme color (slate gray)
-    logoUrl:       `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
-    coverLogoUrl:  `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
-    primaryColor:  '',
-    textColor:     '#4d4d4d',
+    vendorName: 'NMC Genetics',
+    vendorId: 'NMC',
+    themeColor: '#6b7f8c',
+    logoUrl: `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
+    coverLogoUrl: `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
+    primaryColor: '',
+    textColor: '#4d4d4d',
     footerLogoUrl: '',
     vendorAddress: '',
     vendorContact: '',
-    imageOverlay:  '',
-    coverPageImg:  `${BASE_URL}/assets/reportimg/kidney_images/cover_page.jpg`,
+    imageOverlay: '',
+    coverPageImg: `${BASE_URL}/assets/reportimg/kidney_images/cover_page.jpg`,
   },
 
-  // ── Template ────────────────────────────────────────────────────────────────
   templateFn: buildKidneyReportHtml as any,
 };

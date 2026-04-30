@@ -22,6 +22,7 @@ import {
   ClipboardList,
   Clock,
   Clock8,
+  FileText,
   FlaskConical,
   Loader2,
   Package,
@@ -31,7 +32,9 @@ import {
   User,
   X,
   XCircle,
-  PlusCircle
+  PlusCircle,
+  Download,
+  Eye
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -71,11 +74,64 @@ type Order = {
   };
 };
 
+// Map test codes to their corresponding report types
+const TEST_TO_REPORT_MAP: Record<string, { id: string; label: string }> = {
+  // NMC Genetics Tests
+  'NMC-MI01': { id: 'immunity', label: 'Immunity Report' },
+  'NMC-WH01': { id: 'women-health', label: "Women's Health Report" },
+  'NMC-SL01': { id: 'sleep', label: 'Sleep Report' },
+  'NMC-MH01': { id: 'men-health', label: "Men's Health Report" },
+  'NMC-EH01': { id: 'eye-health', label: 'Eye Health Report' },
+  'NMC-AI01': { id: 'autoimmune-health', label: 'Autoimmune Report' },
+  'NMC-KH01': { id: 'kidney-health', label: 'Kidney Health Report' },
+  
+  // Pharmacogenetic Tests
+  'NMC_CLOPI': { id: 'clopidogrel', label: 'Clopidogrel Report' },
+  'NMC_STN': { id: 'statin', label: 'Statin Report' },
+  'NMC_WAC': { id: 'warfarin', label: 'Warfarin Report' },
+  'NMC-HTN': { id: 'hypertension', label: 'Hypertension Report' },
+};
+
+// Fallback: Map test names that might not have test codes
+const TEST_NAME_TO_REPORT_MAP: Record<string, { id: string; label: string }> = {
+  'Immunity': { id: 'immunity', label: 'Immunity Report' },
+  "Women's Health": { id: 'women-health', label: "Women's Health Report" },
+  'Sleep': { id: 'sleep', label: 'Sleep Report' },
+  "Men's Health": { id: 'men-health', label: "Men's Health Report" },
+  'Eye Health': { id: 'eye-health', label: 'Eye Health Report' },
+  'Autoimmune': { id: 'autoimmune-health', label: 'Autoimmune Report' },
+  'Kidney Health': { id: 'kidney-health', label: 'Kidney Health Report' },
+  'Clopidogrel': { id: 'clopidogrel', label: 'Clopidogrel Report' },
+  'Statin': { id: 'statin', label: 'Statin Report' },
+  'Warfarin': { id: 'warfarin', label: 'Warfarin Report' },
+  'Hypertension': { id: 'hypertension', label: 'Hypertension Report' },
+};
+
+// Helper function to get report type for a test
+function getReportTypeForTest(testCode?: string, testName?: string): { id: string; label: string } | null {
+  // First try by test code
+  if (testCode && TEST_TO_REPORT_MAP[testCode]) {
+    return TEST_TO_REPORT_MAP[testCode];
+  }
+  
+  // Then try by test name
+  if (testName) {
+    for (const [key, value] of Object.entries(TEST_NAME_TO_REPORT_MAP)) {
+      if (testName.toLowerCase().includes(key.toLowerCase())) {
+        return value;
+      }
+    }
+  }
+  
+  return null;
+}
+
 export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [generatingReport, setGeneratingReport] = useState<string | null>(null);
   
   // Filters state
   const [filters, setFilters] = useState({
@@ -316,7 +372,58 @@ export default function OrdersPage() {
     router.push(`/vendor/dashboard/additional-info?${params.toString()}`);
   };
 
-  // Helper function to format date
+  const handleGenerateReport = async (sampleId: string | null | undefined, reportTypeId: string, format: 'pdf' | 'html' = 'html') => {
+    if (!sampleId) {
+      setMessage({ type: 'error', text: 'No sample ID available for this order' });
+      return;
+    }
+
+    const reportKey = `${sampleId}-${reportTypeId}`;
+    setGeneratingReport(reportKey);
+    
+    try {
+      const response = await fetch('/api/report/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sample_id: sampleId,
+          report_type: reportTypeId,
+          format,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.Error || 'Report generation failed');
+      }
+
+      if (format === 'pdf') {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${reportTypeId}-report-${sampleId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        setMessage({ type: 'success', text: 'Report generated successfully!' });
+      } else if (format === 'html') {
+        const html = await response.text();
+        const newWindow = window.open();
+        if (newWindow) {
+          newWindow.document.write(html);
+          newWindow.document.close();
+        }
+      }
+    } catch (error) {
+      console.error('Report generation error:', error);
+      setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Failed to generate report' });
+    } finally {
+      setGeneratingReport(null);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -443,6 +550,13 @@ export default function OrdersPage() {
                     const patientName = `${order.patientFName || ''} ${order.patientLName || ''}`.trim() || 'N/A';
                     const mainTest = order.sample;
                     const testId = mainTest?.testCatalogId;
+                    const testCode = mainTest?.testCode;
+                    const testName = mainTest?.testName;
+                    
+                    // Get the appropriate report type for this test
+                    const reportType = getReportTypeForTest(testCode, testName);
+                    const isGenerating = generatingReport === `${order.sample?.sampleId}-${reportType?.id}`;
+                    
                     return (
                       <TableRow key={order.id} className="hover:bg-gray-50">
                         <TableCell>
@@ -504,16 +618,7 @@ export default function OrdersPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleAddInfo(order.sample?.sampleId, testId, order.patientId)}
-                              className="h-8 w-8 p-0 hover:bg-green-50 hover:text-green-700"
-                              title="Add Additional Information"
-                              disabled={!order.sample?.sampleId || !testId}
-                            >
-                              <PlusCircle className="h-4 w-4" />
-                            </Button>
+                            {/* Upload Sample Button */}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -524,6 +629,37 @@ export default function OrdersPage() {
                             >
                               <Upload className="h-4 w-4" />
                             </Button>
+
+                            {/* Add Additional Info Button */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleAddInfo(order.sample?.sampleId, testId, order.patientId)}
+                              className="h-8 w-8 p-0 hover:bg-green-50 hover:text-green-700"
+                              title="Add Additional Information"
+                              disabled={!order.sample?.sampleId || !testId}
+                            >
+                              <PlusCircle className="h-4 w-4" />
+                            </Button>
+
+                            {/* Generate Report Button - Only show if a matching report type exists */}
+                            {reportType && order.sample?.sampleId && testId && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleGenerateReport(order.sample?.sampleId, reportType.id, 'pdf')}
+                                className="h-8 px-2 gap-1 hover:bg-indigo-50 hover:text-indigo-700"
+                                title={reportType.label}
+                                disabled={isGenerating}
+                              >
+                                {isGenerating ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <FileText className="h-4 w-4" />
+                                )}
+                                <span className="text-xs hidden sm:inline">Report</span>
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

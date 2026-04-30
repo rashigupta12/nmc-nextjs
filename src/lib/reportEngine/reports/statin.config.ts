@@ -1,51 +1,42 @@
+// lib/reportEngine/reports/statin.config.ts
 // ============================================================
 // Report Config — Statin
 //
 // Pharmacogenetic report for Statin dosage.
 // Uses statin reference data for phenotype interpretation.
 //
-// What this file owns:
-//   - TestMaster testId: "NMC_STN"
-//   - Custom patientAdditionalResolver for statin lookup
-//   - Single flat section (no A/B/C sections)
-//   - Vendor/branding settings with lab address
-//   - Template function
+// Note: This report type does NOT use PatientFinalReport.
+// Data comes directly from GeneReportTemp + StatinRecommendation
 // ============================================================
 
 import { ReportTypeConfig } from '../types';
-
-// Template import
 import { buildStatinReportHtml } from '@/lib/statinPdf/statinTemplate';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
+// TODO: Replace with actual UUID from Neon test_catalog table
+// Run: SELECT id FROM test_catalog WHERE test_code = 'NMC_STN';
+const STATIN_TEST_UUID = '00000000-0000-0000-0000-000000000011';
+
 export const statinReportConfig: ReportTypeConfig = {
-  // ── Identity ──────────────────────────────────────────────────────────────
   id: 'statin',
   label: 'Statin Report',
 
-  // ── Data sourcing ─────────────────────────────────────────────────────────
-  // Uses TestMaster lookup: fetches GenePageData + GenePageDesc filtered
-  // by the TestMaster record matching testId "NMC_STN"
   pageDataSource: {
     type: 'testMaster',
-    testId: 'NMC_STN',
+    testId: STATIN_TEST_UUID,  // UUID from Neon test_catalog
     pageDataModel: 'GenePageData',
     pageDescModel: 'GenePageDesc',
   },
 
-  // Uses statin recommendation data - will be resolved by custom resolver
+  // Uses StatinRecommendation model - this is correct
+  // The route.ts has special handling for 'statin' report_type
   patientAdditionalModel: 'StatinRecommendation',
 
-  // ── Sections ──────────────────────────────────────────────────────────────
-  // Flat report - no sections
   sections: [],
 
-  // ── Auto-fill mappings ────────────────────────────────────────────────────
-  // No auto-fill needed - data comes from statin lookup
   autoFillMappings: [],
 
-  // ── Vendor / branding ─────────────────────────────────────────────────────
   vendor: {
     vendorName: 'NEOTECH WORLD LAB PRIVATE LIMITED',
     vendorId: 'NEOTECH',
@@ -61,6 +52,5 @@ export const statinReportConfig: ReportTypeConfig = {
     coverPageImg: '',
   },
 
-  // ── Template ──────────────────────────────────────────────────────────────
   templateFn: buildStatinReportHtml as any,
 };

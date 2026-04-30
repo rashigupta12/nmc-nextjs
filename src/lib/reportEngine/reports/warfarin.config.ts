@@ -1,51 +1,42 @@
+// lib/reportEngine/reports/warfarin.config.ts
 // ============================================================
 // Report Config — Warfarin
 //
 // Pharmacogenetic report for Warfarin and Acenocoumarol dosage.
 // Uses CYP2C9 and VKORC1 genotypes for dose calculation.
 //
-// What this file owns:
-//   - TestMaster testId: "NMC_WAC"
-//   - Custom patientAdditionalResolver for warfarin lookup
-//   - Single flat section (no A/B/C sections)
-//   - Vendor/branding settings with lab address
-//   - Template function
+// Note: This report type does NOT use PatientFinalReport.
+// Data comes directly from GeneReportTemp + WarfarinRecommendation
 // ============================================================
 
 import { buildWarfarinReportHtml } from '@/lib/warfarinPdf/warfarinTemplate';
 import { ReportTypeConfig } from '../types';
 
-
-
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
+// TODO: Replace with actual UUID from Neon test_catalog table
+// Run: SELECT id FROM test_catalog WHERE test_code = 'NMC_WAC';
+const WARFARIN_TEST_UUID = '00000000-0000-0000-0000-000000000012';
+
 export const warfarinReportConfig: ReportTypeConfig = {
-  // ── Identity ──────────────────────────────────────────────────────────────
   id: 'warfarin',
   label: 'Warfarin Report',
 
-  // ── Data sourcing ─────────────────────────────────────────────────────────
-  // Uses TestMaster lookup: fetches GenePageData + GenePageDesc filtered
-  // by the TestMaster record matching testId "NMC_WAC"
   pageDataSource: {
     type: 'testMaster',
-    testId: 'NMC_WAC',
+    testId: WARFARIN_TEST_UUID,  // UUID from Neon test_catalog
     pageDataModel: 'GenePageData',
     pageDescModel: 'GenePageDesc',
   },
 
-  // Uses warfarin recommendation data - will be resolved by custom resolver
+  // Uses WarfarinRecommendation model - this is correct
+  // The route.ts has special handling for 'warfarin' report_type
   patientAdditionalModel: 'WarfarinRecommendation',
 
-  // ── Sections ──────────────────────────────────────────────────────────────
-  // Flat report - no sections
   sections: [],
 
-  // ── Auto-fill mappings ────────────────────────────────────────────────────
-  // No auto-fill needed - data comes from warfarin lookup
   autoFillMappings: [],
 
-  // ── Vendor / branding ─────────────────────────────────────────────────────
   vendor: {
     vendorName: 'NEOTECH WORLD LAB PRIVATE LIMITED',
     vendorId: 'NEOTECH',
@@ -61,6 +52,5 @@ export const warfarinReportConfig: ReportTypeConfig = {
     coverPageImg: '',
   },
 
-  // ── Template ──────────────────────────────────────────────────────────────
   templateFn: buildWarfarinReportHtml as any,
 };

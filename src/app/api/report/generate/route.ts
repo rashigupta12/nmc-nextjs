@@ -1,24 +1,22 @@
+// app/api/report/generate/route.ts
 // ============================================================
 // Next.js App Router — Generic Report Generator
 //
 // POST /api/report/generate
 // Body: {
 //   sample_id:   string,
-//   report_type: string,   // "immunity" | "women-health" | ...
+//   report_type: string,
 //   format?:     "pdf" | "html" | "json"
 // }
-//
-// This route has ZERO knowledge of specific report types.
-// All branching is driven by the config returned from getReportConfig().
 // ============================================================
 
 export const maxDuration = 60;
-export const runtime     = 'nodejs';
+export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { eq, and } from 'drizzle-orm';
 
-// ── Engine imports (everything from one place) ────────────────────────────────
 import {
   getReportConfig,
   isValidReportType,
@@ -31,203 +29,85 @@ import {
   buildPdfOptions,
 } from '@/lib/reportEngine';
 
-// ── DB connection ─────────────────────────────────────────────────────────────
 import { connectToMongoDB } from '@/lib/mongodb';
+import { db } from '@/db'; // Drizzle DB connection
+import { 
+  PatientsTable, 
+  SamplesTable, 
+  TestCatalogTable 
+} from '@/db/schema';
 
-// ── Model barrel import — registers all mongoose models before resolveModel() ─
-// Add every model your report types reference here.
+// Model imports — registers all MongoDB models (genetic data only)
 import '@/models/geneReportTemp';
-import '@/models/patient';
-import '@/models/sample';
-import '@/models/testMaster';
 import '@/models/genePageData';
 import '@/models/genePageDesc';
-import '@/models/womenHealthPageData';
-import '@/models/womenHealthPageDesc';
-import '@/models/patientAdditionalImmunity';
-import '@/models/patientAdditionalWomanHealth';
-import '@/models/patientAdditionalSleep';
-import '@/models/clopidogrelRecommendation';
-import ClopidogrelRecommendation from '@/models/clopidogrelRecommendation';
-import StatinRecommendation from '@/models/statinRecommendation';
-import WarfarinRecommendation from '@/models/warfarinRecommendation';
-import '@/models/patientAdditionalmen';
-import '@/models/patientAdditionalEyeHealth';
-
-// ── Patient + Sample models (direct use) ──────────────────────────────────────
-import { Patient, PatientModel } from '@/models/patient';
-import { Sample } from '@/models/sample';
-import { GeneReportTemp } from '@/models/geneReportTemp';
-
-// ─── Validation ───────────────────────────────────────────────────────────────
+import '@/models/patientFinalReport';
+import '@/models/genericReportRecommendation';
 
 const RequestSchema = z.object({
-  sample_id:   z.string().min(1, 'sample_id is required'),
+  sample_id: z.string().min(1, 'sample_id is required'),
   report_type: z.string().min(1, 'report_type is required'),
-  format:      z.enum(['pdf', 'html', 'json']).optional().default('html'),
+  format: z.enum(['pdf', 'html', 'json']).optional().default('html'),
 });
 
-// ─── Helper: Extract SLCO1B1 variant for Statin ───────────────────────────────
-function extractSlco1b1Variant(geneReportData: any[]): string | null {
-  const slco1b1Record = geneReportData.find((d: any) => 
-    d.gene && d.gene.toUpperCase() === 'SLCO1B1'
-  );
-  return slco1b1Record ? slco1b1Record.report_variant : null;
-}
-
-// ─── Helper: Extract Warfarin genotypes ───────────────────────────────────────
-function extractWarfarinGenotypes(geneReportData: any[]): {
-  cyp2c9_2_status: string | null;
-  cyp2c9_3_status: string | null;
-  vkorc1_variant: string | null;
-  cyp2c9_combined: string | null;
-} {
-  let cyp2c9_2_status = null;
-  let cyp2c9_3_status = null;
-  let vkorc1_variant = null;
+// Helper to convert Neon patient to format expected by GenericReportService
+function convertNeonPatientToRawInput(patient: any) {
+  console.log('[ConvertNeonPatient] Converting patient data:', {
+    patientId: patient.patientId,
+    name: `${patient.patientFName} ${patient.patientLName}`,
+    age: patient.age,
+    gender: patient.gender
+  });
   
-  for (const record of geneReportData) {
-    const gene = record.gene?.toUpperCase() || '';
-    const status = record.status || record.report_variant;
-    
-    if (gene === 'CYP2C9*2') {
-      cyp2c9_2_status = status;
-    } else if (gene === 'CYP2C9*3') {
-      cyp2c9_3_status = status;
-    } else if (gene === 'VKORC1') {
-      vkorc1_variant = record.report_variant;
-    }
-  }
-  
-  // Combine CYP2C9 genotypes
-  let cyp2c9_combined = null;
-  if (cyp2c9_2_status && cyp2c9_3_status) {
-    cyp2c9_combined = `${cyp2c9_2_status}/${cyp2c9_3_status}`;
-  }
-  
-  return { cyp2c9_2_status, cyp2c9_3_status, vkorc1_variant, cyp2c9_combined };
-}
-
-// ─── Helper: Calculate Warfarin dosage using IWPC formula ──────────────────────
-function calculateWarfarinDosage(
-  cyp2c9_combined: string | null,
-  vkorc1_variant: string | null,
-  weight: number,
-  age: number,
-  gender: string
-): { baseDose: number; amiodaroneDose: number; enzymeDose: number } {
-  // IWPC (International Warfarin Pharmacogenetics Consortium) formula
-  // log(dose) = 0.613 - 0.2475*VKORC1 + 0.0322*Age + 0.664*BSA + 0.219*CYP2C9*2 + 0.216*CYP2C9*3 + 0.122*Amiodarone + 0.104*Smoker + 0.091*Race
-  
-  // VKORC1 coefficient
-  let vkorc1Coeff = 0;
-  if (vkorc1_variant === 'GG') vkorc1Coeff = -0.8675; // GG = -0.8675
-  else if (vkorc1_variant === 'GA') vkorc1Coeff = 0; // GA = 0
-  else if (vkorc1_variant === 'AA') vkorc1Coeff = 0.2475; // AA = +0.2475
-  
-  // CYP2C9 coefficients
-  let cyp2c9_2_coeff = 0;
-  let cyp2c9_3_coeff = 0;
-  
-  if (cyp2c9_combined) {
-    if (cyp2c9_combined.includes('*2')) cyp2c9_2_coeff = 0.219;
-    if (cyp2c9_combined.includes('*3')) cyp2c9_3_coeff = 0.216;
-  }
-  
-  // Calculate BSA (Body Surface Area) using Mosteller formula
-  const height = 170; // Default height in cm
-  const bsa = Math.sqrt((height * weight) / 3600);
-  
-  // Calculate log dose
-  const logDose = 0.613 
-    - (vkorc1Coeff * 0.2475)
-    + (Math.log(age) * 0.0322)
-    + (Math.log(bsa) * 0.664)
-    + cyp2c9_2_coeff
-    + cyp2c9_3_coeff;
-  
-  // Convert from log dose to weekly dose in mg
-  const baseDose = Math.exp(logDose);
-  
-  // Adjustments for amiodarone and enzyme inducers
-  const amiodaroneDose = baseDose * 0.75; // Amiodarone reduces dose by 25%
-  const enzymeDose = baseDose * 1.5; // Enzyme inducers increase dose by 50%
-  
-  return { 
-    baseDose: Math.round(baseDose), 
-    amiodaroneDose: Math.round(amiodaroneDose), 
-    enzymeDose: Math.round(enzymeDose) 
+  return {
+    patientId: patient.patientId,
+    patientFName: patient.patientFName,
+    patientMName: patient.patientMName || '',
+    patientLName: patient.patientLName,
+    age: patient.age,
+    gender: patient.gender,
+    email: patient.email,
+    weight: patient.weight,
+    height: patient.height,
   };
 }
 
-// ─── Helper: Calculate Acenocoumarol dosage ────────────────────────────────────
-function calculateAcenocoumarolDosage(
-  vkorc1_variant: string | null,
-  cyp2c9_2_status: string | null,
-  cyp2c9_3_status: string | null,
-  weight: number,
-  gender: string
-): number {
-  // Linear stepwise regression model for Acenocoumarol
-  // Dose (mg/day) = 0.192 + VKORC1_coeff + (0.04 * weight) + (0.569 * gender_male)
+// Helper to convert Neon sample to format expected by GenericReportService
+function convertNeonSampleToRawInput(sample: any) {
+  console.log('[ConvertNeonSample] Converting sample data:', {
+    sampleId: sample.sampleId,
+    orderNo: sample.orderNo,
+    status: sample.status,
+    hasGeneticData: !!sample.reportGenerated
+  });
   
-  let vkorc1Coeff = 0;
-  if (vkorc1_variant === 'GG') vkorc1Coeff = 0.879;
-  else if (vkorc1_variant === 'GA') vkorc1Coeff = 0;
-  else if (vkorc1_variant === 'AA') vkorc1Coeff = -1.443;
-  
-  const genderCoeff = gender === 'M' ? 0.569 : 0;
-  
-  const dose = 0.192 + vkorc1Coeff + (0.04 * weight) + genderCoeff;
-  
-  return parseFloat(dose.toFixed(2));
-}
-
-// ─── Helper: Get CYP2C9 interpretation ────────────────────────────────────────
-function getCYP2C9Interpretation(combined_genotype: string): { result: string; status: string } {
-  const interpretations: Record<string, { result: string; status: string }> = {
-    '*1/*1': { result: 'Normal Metabolizer - Standard Dose', status: 'good' },
-    '*1/*2': { result: 'Intermediate Metabolizer - Reduced Dose', status: 'intermediate' },
-    '*1/*3': { result: 'Intermediate Metabolizer - Reduced Dose', status: 'intermediate' },
-    '*2/*2': { result: 'Poor Metabolizer - Significantly Reduced Dose', status: 'poor' },
-    '*2/*3': { result: 'Poor Metabolizer - Significantly Reduced Dose', status: 'poor' },
-    '*3/*3': { result: 'Poor Metabolizer - Significantly Reduced Dose', status: 'poor' },
+  return {
+    sampleId: sample.sampleId,
+    orderNo: sample.orderNo?.toString(),
+    test: sample.testCatalogId, // Use testCatalogId instead of test
+    collectionDate: sample.createdAt,
+    receivedDate: sample.receivedAt,
+    status: sample.status,
+    geneticData: { reportGenerated: sample.reportGenerated },
   };
-  return interpretations[combined_genotype] || { result: 'Unknown Metabolizer', status: 'average' };
 }
-
-// ─── Helper: Get VKORC1 interpretation ────────────────────────────────────────
-function getVKORC1Interpretation(vkorc1_variant: string | null): string {
-  const interpretations: Record<string, string> = {
-    'GG': 'NORMAL METABOLIZER - Normal Dose',
-    'GA': 'INTERMEDIATE METABOLIZER - Intermediate Dose',
-    'AA': 'POOR METABOLIZER - Low Dose',
-  };
-  return interpretations[vkorc1_variant || 'GG'] || 'Unknown';
-}
-
-// ─── Helper: Get combined interpretation ──────────────────────────────────────
-function getCombinedInterpretation(
-  cyp2c9Status: string,
-  vkorc1_variant: string | null
-): string {
-  if (cyp2c9Status === 'poor' || vkorc1_variant === 'AA') {
-    return 'Poor Metabolizer';
-  } else if (cyp2c9Status === 'intermediate' || vkorc1_variant === 'GA') {
-    return 'Intermediate Metabolizer';
-  }
-  return 'Normal Metabolizer';
-}
-
-// ─── Handler ──────────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  console.log('[ReportGen] ========== STARTING REPORT GENERATION ==========');
+  const startTime = Date.now();
+  
   try {
-    // 1. Parse + validate body ────────────────────────────────────────────────
-    const body   = await request.json();
+    const body = await request.json();
+    console.log('[ReportGen] Request body received:', {
+      sample_id: body.sample_id,
+      report_type: body.report_type,
+      format: body.format || 'html'
+    });
+    
     const parsed = RequestSchema.safeParse(body);
 
     if (!parsed.success) {
+      console.error('[ReportGen] Validation failed:', parsed.error.errors[0].message);
       return NextResponse.json(
         { Success: 'false', Error: parsed.error.errors[0].message },
         { status: 400 }
@@ -235,9 +115,10 @@ export async function POST(request: NextRequest) {
     }
 
     const { sample_id, report_type, format } = parsed.data;
+    console.log(`[ReportGen] Processing report - Type: ${report_type}, Format: ${format}, Sample: ${sample_id}`);
 
-    // 2. Validate report type ─────────────────────────────────────────────────
     if (!isValidReportType(report_type)) {
+      console.error(`[ReportGen] Invalid report type: "${report_type}"`);
       return NextResponse.json(
         { Success: 'false', Error: `Unknown report_type: "${report_type}"` },
         { status: 400 }
@@ -245,210 +126,202 @@ export async function POST(request: NextRequest) {
     }
 
     const config = getReportConfig(report_type);
+    console.log('[ReportGen] Report config loaded:', {
+      vendor: config.vendor,
+      pageDataSourceType: config.pageDataSource.type,
+      hasTemplateFn: !!config.templateFn,
+      hasPatientAdditionalModel: !!config.patientAdditionalModel
+    });
 
-    // 3. Connect DB ───────────────────────────────────────────────────────────
+    // ─── Connect to MongoDB (for genetic data only) ────────────────────────────
+    console.log('[ReportGen] Connecting to MongoDB...');
+    const mongoStart = Date.now();
     await connectToMongoDB();
+    console.log(`[ReportGen] MongoDB connected in ${Date.now() - mongoStart}ms`);
 
-    // 4. Fetch Sample ─────────────────────────────────────────────────────────
-    const sample = await Sample.findBySampleId(sample_id.toUpperCase());
+    // ─── Fetch Sample from Neon (PostgreSQL) using Drizzle ─────────────────────
+    console.log(`[ReportGen] Fetching sample from Neon: ${sample_id.toUpperCase()}`);
+    const dbStart = Date.now();
+    const samples = await db
+      .select()
+      .from(SamplesTable)
+      .where(eq(SamplesTable.sampleId, sample_id.toUpperCase()))
+      .limit(1);
+    
+    const sample = samples[0];
+    console.log(`[ReportGen] Sample fetch completed in ${Date.now() - dbStart}ms`);
+    
     if (!sample) {
+      console.error(`[ReportGen] Sample not found: ${sample_id}`);
       return NextResponse.json(
-        { Success: 'false', Error: 'Sample not found' },
+        { Success: 'false', Error: 'Sample not found in Neon' },
         { status: 404 }
       );
     }
+    
+    console.log('[ReportGen] Sample found:', {
+      id: sample.id,
+      sampleId: sample.sampleId,
+      patientId: sample.patientId,
+      testCatalogId: sample.testCatalogId,
+      status: sample.status,
+      // orderNo: sample.orderNo
+    });
 
-    // 5. Fetch Patient ─────────────────────────────────────────────────────────
+    // ─── Fetch Patient from Neon (PostgreSQL) using Drizzle ────────────────────
     let patient: any = null;
-
+    
     if (config.pageDataSource.type === 'direct') {
-      patient = await (Patient as PatientModel).findByPatientId(
-        sample.patientId.toString().toUpperCase()
-      );
+      console.log(`[ReportGen] Fetching patient by patientId string: ${sample.patientId}`);
+      const patients = await db
+        .select()
+        .from(PatientsTable)
+        .where(eq(PatientsTable.patientId, sample.patientId))
+        .limit(1);
+      patient = patients[0];
     } else {
-      patient = await Patient.findById(sample.patientId);
+      console.log(`[ReportGen] Fetching patient by UUID: ${sample.patientId}`);
+      const patients = await db
+        .select()
+        .from(PatientsTable)
+        .where(eq(PatientsTable.id, sample.patientId))
+        .limit(1);
+      patient = patients[0];
     }
 
     if (!patient) {
+      console.error(`[ReportGen] Patient not found for patientId: ${sample.patientId}`);
       return NextResponse.json(
-        { Success: 'false', Error: 'Patient not found' },
+        { Success: 'false', Error: 'Patient not found in Neon' },
         { status: 404 }
       );
     }
-
-    // 6. Fetch GeneReportTemp rows ─────────────────────────────────────────────
-    const geneReportData = await resolveGeneReportData(
-      sample.patientId.toString()
-    );
-
-    // 7. Fetch page data + page desc (strategy from config) ───────────────────
-    const { pageData, pageDesc } = await resolvePageData(config.pageDataSource);
-
-    // 8. Fetch patient additional ──────────────────────────────────────────────
-    let patientAdditional: any = null;
     
-    if (report_type === 'clopidogrel') {
-      // Clopidogrel implementation
-      const clopidogrelData = geneReportData.filter((d: any) => 
-        d.reportType === 'Clopidogrel' || d.reportType === 'NMC_CLOPI'
-      );
-      
-      if (clopidogrelData.length >= 3) {
-        const getReportVariant = (geneName: string) => {
-          const record = clopidogrelData.find((d: any) => 
-            d.gene && d.gene.toUpperCase().includes(geneName.toUpperCase())
-          );
-          return record ? record.report_variant : null;
-        };
-        
-        const cyp2c19_2 = getReportVariant('CYP2C19*2');
-        const cyp2c19_3 = getReportVariant('CYP2C19*3');
-        const cyp2c19_17 = getReportVariant('CYP2C19*17');
-        
-        console.log('🧬 Clopidogrel genotypes:', { cyp2c19_2, cyp2c19_3, cyp2c19_17 });
-        
-        if (cyp2c19_2 && cyp2c19_3 && cyp2c19_17) {
-          const recommendation = await ClopidogrelRecommendation.findOne({
-            cyp2c19_2,
-            cyp2c19_3,
-            cyp2c19_17,
-          });
-          
-          if (recommendation) {
-            patientAdditional = {
-              status: recommendation.status,
-              recommendation: recommendation.recommendation,
-              implications: recommendation.implications,
-              combinedGenotype: recommendation.combinedGenotype,
-              cyp2c19_2,
-              cyp2c19_3,
-              cyp2c19_17,
-            };
-          } else {
-            patientAdditional = {
-              status: '—',
-              recommendation: '—',
-              combinedGenotype: '—',
-              cyp2c19_2,
-              cyp2c19_3,
-              cyp2c19_17,
-            };
-          }
-        }
-      }
-    } else if (report_type === 'statin') {
-      // Statin implementation
-      const slco1b1Variant = extractSlco1b1Variant(geneReportData);
-      console.log('🧬 Statin SLCO1B1 variant:', slco1b1Variant);
-      
-      // Fetch all drug recommendations from StatinRecommendation model
-      const drugRecommendations = await StatinRecommendation.find({ 
-        reportTestId: 'NMC_STN' 
-      }).sort({ id: 1 });
-      
-      console.log(`✅ Found ${drugRecommendations.length} statin drug recommendations`);
-      
-      // Build the addDetails array for the template
-      const addDetails = drugRecommendations.map((drug: any) => ({
-        drug: drug.drug,
-        TT: drug.TT,
-        TC: drug.TC,
-        CC: drug.CC,
-      }));
-      
-      const variant = slco1b1Variant || 'TT';
-      
-      patientAdditional = {
-        report_variant: variant,
-        addDetails: addDetails,
-        status: variant === 'TT' ? 'Normal Metabolizer' : variant === 'TC' ? 'Intermediate Metabolizer' : 'Poor Metabolizer',
-        cpicLevel: '1A'
-      };
-      
-      console.log('✅ Built Statin patientAdditional with', addDetails.length, 'drugs');
-      
-    } else if (report_type === 'warfarin') {
-      // WARFARIN IMPLEMENTATION
-      const { cyp2c9_2_status, cyp2c9_3_status, vkorc1_variant, cyp2c9_combined } = extractWarfarinGenotypes(geneReportData);
-      
-      console.log('🧬 Warfarin genotypes:', { cyp2c9_2_status, cyp2c9_3_status, vkorc1_variant, cyp2c9_combined });
-      
-      // Find matching recommendation from database (if needed)
-      let recommendation = null;
-      if (cyp2c9_2_status && cyp2c9_3_status) {
-        recommendation = await WarfarinRecommendation.findOne({
-          'CYP2C19*2': cyp2c9_2_status,
-          'CYP2C19*3': cyp2c9_3_status,
-        });
-      }
-      
-      // Calculate dosages
-      const weight = parseFloat(patient.weight) || 70;
-      const age = patient.age || 30;
-      const gender = patient.gender || 'M';
-      
-      const warfarinDoses = calculateWarfarinDosage(cyp2c9_combined, vkorc1_variant, weight, age, gender);
-      const acenocoumarolDose = calculateAcenocoumarolDosage(vkorc1_variant, cyp2c9_2_status, cyp2c9_3_status, weight, gender);
-      const cyp2c9Interpretation = getCYP2C9Interpretation(cyp2c9_combined || '*1/*1');
-      const vkorc1Interpretation = getVKORC1Interpretation(vkorc1_variant);
-      const combinedInterpretation = getCombinedInterpretation(cyp2c9Interpretation.status, vkorc1_variant);
-      
-      patientAdditional = {
-        warfarinDosage: warfarinDoses.baseDose,
-        amiodaroneDose: warfarinDoses.amiodaroneDose,
-        enzymeDose: warfarinDoses.enzymeDose,
-        acenocomuroal: acenocoumarolDose,
-        combinedInterpretation: combinedInterpretation,
-        cyp2c9Genotype: cyp2c9_combined || '*1/*1',
-        cyp2c9Interpretation: cyp2c9Interpretation,
-        vkorc1Genotype: vkorc1_variant || 'GG',
-        vkorc1Interpretation: vkorc1Interpretation,
-        recommendation: recommendation,
-      };
-      
-      console.log('✅ Built Warfarin patientAdditional:', {
-        warfarinDosage: warfarinDoses.baseDose,
-        acenocomuroal: acenocoumarolDose,
-        combinedInterpretation: combinedInterpretation,
-        cyp2c9_combined: cyp2c9_combined,
-        vkorc1_variant: vkorc1_variant
-      });
-      
-    } else if (config.patientAdditionalModel) {
-      patientAdditional = await resolvePatientAdditional(
-        config.patientAdditionalModel,
-        patient._id
+    console.log('[ReportGen] Patient found:', {
+      id: patient.id,
+      patientId: patient.patientId,
+      name: `${patient.patientFName} ${patient.patientLName}`,
+      age: patient.age,
+      gender: patient.gender
+    });
+
+    // ─── Get test catalog info from Neon ───────────────────────────────────────
+    let testId: string | null = null;
+    
+    if (config.pageDataSource.type === 'testMaster') {
+      testId = config.pageDataSource.testId;
+      console.log(`[ReportGen] Using testMaster testId: ${testId}`);
+    } else if (config.pageDataSource.type === 'direct') {
+      testId = sample.testCatalogId;
+      console.log(`[ReportGen] Using direct testId from sample: ${testId}`);
+    }
+
+    if (!testId) {
+      console.error('[ReportGen] testId could not be determined from config or sample');
+      return NextResponse.json(
+        { Success: 'false', Error: 'testId could not be determined' },
+        { status: 500 }
       );
     }
 
-    // 9. Build normalised sample object for the engine ─────────────────────────
-    const sampleForEngine = {
-      sampleId:       sample.sampleId,
-      orderNo:        sample.orderNo?.toString(),
-      test:           sample.test,
-      collectionDate: sample.createdAt,
-      receivedDate:   sample.receivedDate,
-      status:         sample.status,
-      geneticData:    sample.geneticData,
-    };
+    // Optional: Verify test exists in Neon
+    console.log(`[ReportGen] Verifying test catalog entry for testId: ${testId}`);
+    const testCatalog = await db
+      .select()
+      .from(TestCatalogTable)
+      .where(eq(TestCatalogTable.id, testId))
+      .limit(1);
 
-    // 10. Run the engine ───────────────────────────────────────────────────────
-    const service      = new GenericReportService(config);
-    const genericResp  = await service.processReportData(
-      patient,
+    if (!testCatalog[0]) {
+      console.warn(`[ReportGen] Test catalog entry not found for testId: ${testId}`);
+    } else {
+      console.log('[ReportGen] Test catalog found:', {
+        id: testCatalog[0].id,
+        testCode: testCatalog[0].testCode,
+        testName: testCatalog[0].testName
+      });
+    }
+
+    // ─── Fetch GeneReportTemp rows from MongoDB ─────────────────────────────────
+    console.log('[ReportGen] Fetching gene report data from MongoDB...');
+    const geneStart = Date.now();
+    const geneReportData = await resolveGeneReportData(
+      sample.patientId,     // This could be UUID or patientId string
+      sample.id,            // UUID from Neon samples table
+      testId                // UUID from test_catalog
+    );
+    console.log(`[ReportGen] Found ${geneReportData.length} gene records in ${Date.now() - geneStart}ms`);
+    
+    if (geneReportData.length === 0) {
+      console.warn('[ReportGen] No gene records found for this sample');
+    } else {
+      console.log('[ReportGen] Gene records summary:', geneReportData);
+    }
+
+    // ─── Fetch page data from MongoDB ──────────────────────────────────────────
+    console.log('[ReportGen] Fetching page data from MongoDB...');
+    const pageDataStart = Date.now();
+    const { pageData, pageDesc } = await resolvePageData(config.pageDataSource);
+    console.log(`[ReportGen] Page data fetched in ${Date.now() - pageDataStart}ms`);
+    console.log('[ReportGen] Page data summary:', {
+      pageDataCount: Object.keys(pageData || {}).length,
+      pageDescCount: Object.keys(pageDesc || {}).length
+    });
+
+    // ─── Fetch patient additional from PatientFinalReport (MongoDB) ─────────────
+    console.log('[ReportGen] Fetching patient additional data from MongoDB...');
+    const patientAdditionalStart = Date.now();
+    const patientAdditional = await resolvePatientAdditional(
+      config.patientAdditionalModel || 'PatientFinalReport',
+      sample.patientId,     // Could be UUID or patientId string
+      sample.id,            // UUID from Neon samples table
+      testId                // UUID from test_catalog
+    );
+    console.log(`[ReportGen] Patient additional data fetched in ${Date.now() - patientAdditionalStart}ms`);
+    console.log('[ReportGen] Patient additional data:', patientAdditional ? 'Found' : 'Not found');
+
+    // ─── Build sample object for engine ────────────────────────────────────────
+    const sampleForEngine = convertNeonSampleToRawInput(sample);
+
+    // ─── Convert Neon patient to expected format ───────────────────────────────
+    const rawPatientInput = convertNeonPatientToRawInput(patient);
+
+    // ─── Run the engine ────────────────────────────────────────────────────────
+    console.log('[ReportGen] Initializing GenericReportService...');
+    const serviceStart = Date.now();
+    const service = new GenericReportService(config);
+    console.log(`[ReportGen] Service initialized in ${Date.now() - serviceStart}ms`);
+    
+    console.log('[ReportGen] Processing report data...');
+    const processStart = Date.now();
+    const genericResp = await service.processReportData(
+      rawPatientInput,
       sampleForEngine,
       geneReportData,
       pageData,
       pageDesc,
       patientAdditional
     );
+    console.log(`[ReportGen] Report data processed in ${Date.now() - processStart}ms`);
+    console.log('[ReportGen] Processed data summary:', {
+      hasPatientDetails: !!genericResp.PatientDetails,
+      hasSampleDetails: !!genericResp.SampleDetails,
+      hasSections: !!genericResp.sections,
+      sectionsCount: Object.keys(genericResp.sections || {}).length,
+      hasAddDetails: !!genericResp.addDetails,
+      reportTypeId: genericResp.meta?.reportTypeId,
+      reportLabel: genericResp.meta?.reportLabel
+    });
 
-    // 11. Build PDF options
+    // ─── Build PDF options ─────────────────────────────────────────────────────
+    console.log('[ReportGen] Building PDF options...');
     const pdfOpts = buildPdfOptions(report_type, genericResp, config.vendor);
+    console.log('[ReportGen] PDF options built successfully');
 
-    // 12. Handle JSON format ───────────────────────────────────────────────────
+    // ─── Handle JSON format ────────────────────────────────────────────────────
     if (format === 'json') {
-      const jsonResponse = {
+      console.log('[ReportGen] Returning JSON response');
+      const response = {
         success: true,
         report_type,
         sample_id,
@@ -457,51 +330,65 @@ export async function POST(request: NextRequest) {
           engineData: genericResp,
           metadata: {
             generatedAt: new Date().toISOString(),
-            patientId: patient._id,
-            patientName: patient.name || patient.firstName,
+            patientId: patient.id,
+            patientName: `${patient.patientFName} ${patient.patientLName}`,
             sampleId: sample.sampleId,
+            sampleUuid: sample.id,
+            testId: testId,
+            testCode: testCatalog[0]?.testCode,
           },
-          config: {
-            reportType: report_type,
-            pageDataSource: config.pageDataSource.type,
-            vendor: config.vendor,
-            patientAdditionalModel: config.patientAdditionalModel,
-          }
-        }
+        },
       };
       
-      return NextResponse.json(jsonResponse, {
+      console.log(`[ReportGen] JSON generation completed in ${Date.now() - startTime}ms`);
+      return NextResponse.json(response, {
         status: 200,
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-        },
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
       });
     }
 
-    // 13. Render HTML for PDF or HTML format ───────────────────────────────────
+    // ─── Render HTML ───────────────────────────────────────────────────────────
+    console.log('[ReportGen] Rendering HTML template...');
+    const renderStart = Date.now();
     const html = config.templateFn(pdfOpts);
+    console.log(`[ReportGen] HTML rendered in ${Date.now() - renderStart}ms`);
+    console.log('[ReportGen] HTML size:', html.length, 'characters');
 
     if (format === 'html') {
+      console.log('[ReportGen] Returning HTML response');
+      console.log(`[ReportGen] HTML generation completed in ${Date.now() - startTime}ms`);
       return new NextResponse(renderHtml(html), {
         headers: { 'Content-Type': 'text/html; charset=utf-8' },
       });
     }
 
-    // 14. Generate PDF ─────────────────────────────────────────────────────────
+    // ─── Generate PDF ──────────────────────────────────────────────────────────
+    console.log('[ReportGen] Generating PDF...');
+    const pdfStart = Date.now();
     const pdfBuffer = await renderHtmlToPdf(html);
-    const filename  = `${report_type}-report-${sample_id}.pdf`;
+    console.log(`[ReportGen] PDF generated in ${Date.now() - pdfStart}ms`);
+    console.log('[ReportGen] PDF size:', pdfBuffer.length, 'bytes');
+    
+    const filename = `${report_type}-report-${sample_id}.pdf`;
+    console.log(`[ReportGen] Returning PDF response: ${filename}`);
+    console.log(`[ReportGen] Total execution time: ${Date.now() - startTime}ms`);
+    console.log('[ReportGen] ========== REPORT GENERATION COMPLETED ==========');
 
     return new NextResponse(pdfBuffer.buffer as any, {
       status: 200,
       headers: {
-        'Content-Type':        'application/pdf',
+        'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Length':      String(pdfBuffer.length),
+        'Content-Length': String(pdfBuffer.length),
       },
     });
 
   } catch (error: any) {
-    console.error('[GenericReportRoute] error:', error);
+    console.error('[ReportGen] ========== ERROR IN REPORT GENERATION ==========');
+    console.error('[ReportGen] Error message:', error?.message);
+    console.error('[ReportGen] Error stack:', error?.stack);
+    console.error('[ReportGen] Error details:', error);
+    
     return NextResponse.json(
       { Success: 'false', Error: error?.message ?? 'Report generation failed' },
       { status: 500 }

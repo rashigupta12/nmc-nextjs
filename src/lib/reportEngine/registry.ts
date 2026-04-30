@@ -1,10 +1,9 @@
+// lib/reportEngine/registry.ts
 // ============================================================
 // Report Engine — Registry
 //
 // All report type configs are registered here.
 // Adding a new report type = import config + one line below.
-// The route and engine import ONLY this file — they know
-// nothing about specific report types.
 // ============================================================
 
 import { ReportTypeConfig } from './types';
@@ -27,27 +26,17 @@ const REPORT_REGISTRY: Record<string, ReportTypeConfig> = {
   'women-health': womenHealthReportConfig,
   'sleep': sleepReportConfig,
   'men-health': menHealthReportConfig,
-  'eye-health': eyeHealthReportConfig,  // ← ADD THIS
+  'eye-health': eyeHealthReportConfig,
   'clopidogrel': clopidogrelReportConfig,
-  'kidney-health': kidneyReportConfig,  // ← ADD THIS
-  'autoimmune-health': autoimmuneReportConfig,  // ← ADD THIS
-  'statin': statinReportConfig,  // ←
-  'warfarin': warfarinReportConfig,  // ← ADD THIS
-  'hypertension': hypertensionReportConfig,  // ← ADD THIS
-
-  // ─── Add new report types here ──────────────────────────────
-  // 'cardio':    cardiovascularReportConfig,
-  // 'nutrition': nutritionReportConfig,
-  // 'skin':      skinReportConfig,
+  'kidney-health': kidneyReportConfig,
+  'autoimmune-health': autoimmuneReportConfig,
+  'statin': statinReportConfig,
+  'warfarin': warfarinReportConfig,
+  'hypertension': hypertensionReportConfig,
 };
 
 // ─── Accessors ───────────────────────────────────────────────────────────────
 
-/**
- * Returns the config for a given report type ID.
- * Throws a descriptive error if the type is not registered —
- * the route catches this and returns a 400.
- */
 export function getReportConfig(id: string): ReportTypeConfig {
   const config = REPORT_REGISTRY[id];
   if (!config) {
@@ -59,10 +48,6 @@ export function getReportConfig(id: string): ReportTypeConfig {
   return config;
 }
 
-/**
- * Returns a lightweight list of all registered report types.
- * Used by the frontend page to populate the report type selector.
- */
 export function listReportTypes(): Array<{ id: string; label: string }> {
   return Object.values(REPORT_REGISTRY).map(c => ({
     id: c.id,
@@ -70,10 +55,6 @@ export function listReportTypes(): Array<{ id: string; label: string }> {
   }));
 }
 
-/**
- * Returns true if a given report type ID is registered.
- * Useful for validation without throwing.
- */
 export function isValidReportType(id: string): boolean {
   return id in REPORT_REGISTRY;
 }

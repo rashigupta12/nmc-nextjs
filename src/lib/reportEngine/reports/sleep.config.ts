@@ -1,141 +1,116 @@
+// lib/reportEngine/reports/sleep.config.ts
 // ============================================================
 // Report Config — Sleep Health
 //
-// This is the CANONICAL reference config for Sleep Report.
-// Pattern: Same as Immunity (TestMaster-based + patientAdditional)
-//
-// What this file owns:
-//   - Which TestMaster record to scope page data to
-//   - Which patientAdditional model to query
-//   - Auto-fill mappings (condition name → patientAdditional fields)
-//   - Vendor / branding settings
-//   - The template function (imported from sleep template file)
+// Updated for dual database architecture
 // ============================================================
 
 import { ReportTypeConfig } from '../types';
-
-// Template import — uses lowercase directory name (sleepPdf)
 import { buildSleepReportHtml } from '@/lib/sleepPdf/sleepTemplate';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
+// TODO: Replace with actual UUID from Neon test_catalog table
+const TEST_UUID = '00000000-0000-0000-0000-000000000005'; // Replace with actual UUID
+
 export const sleepReportConfig: ReportTypeConfig = {
-  // ── Identity ──────────────────────────────────────────────────────────────
-  id:    'sleep',
+  id: 'sleep',
   label: 'Sleep Health Report',
 
-  // ── Data sourcing ─────────────────────────────────────────────────────────
-  // Uses TestMaster lookup: fetches GenePageData + GenePageDesc filtered
-  // by the TestMaster record matching testId for Sleep
   pageDataSource: {
-    type:          'testMaster',
-    testId:        'NMC-SL01',           // TODO: Confirm actual test ID
+    type: 'testMaster',
+    testId: TEST_UUID,  // UUID from Neon test_catalog
     pageDataModel: 'GenePageData',
     pageDescModel: 'GenePageDesc',
   },
 
-  // Mongoose model name for the patient additional collection
-  patientAdditionalModel: 'PatientAdditionalSleep',
+  patientAdditionalModel: 'PatientFinalReport',
 
-  // ── Sections ──────────────────────────────────────────────────────────────
-  // Sleep report is flat (no sections like A/B/C) — all conditions in one sequence
   sections: [],
 
-  // ── Auto-fill mappings ────────────────────────────────────────────────────
-  // Each entry: when patientAdditional[statusKey] has a value,
-  // override all conditions whose name/display_condition includes `match`.
-  //
-  // Note: Some values are manually set (obstructiveSleep, durationOfSleep, etc.)
-  // Some are computed by algorithms (vitB9, vitD, glutenIntolerance)
   autoFillMappings: [
-    // ── Manual overrides (from sleep_additional table) ──────────────────────
     {
-      match:     'Obstructive Sleep Apnea',
-      statusKey: 'obstructiveSleepStatus',
-      recKey:    'obstructiveSleepRecommendation',
-      interKey:  'obstructiveSleepInterpritation',  // typo preserved from DB
+      match: 'Obstructive Sleep Apnea',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
     {
-      match:     'Duration of Sleep',
-      statusKey: 'durationOfSleepStatus',
-      recKey:    'durationOfSleepRecommendation',
-      interKey:  'durationOfSleepInterpritation',
+      match: 'Duration of Sleep',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
     {
-      match:     'Caffine Related Insomnia',
-      statusKey: 'caffineInsomniaStatus',
-      recKey:    'caffineInsomniaRecommendation',
-      interKey:  'caffineInsomniaInterpritation',
+      match: 'Caffine Related Insomnia',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
     {
-      match:     'Restless Legs Syndrome',
-      statusKey: 'restlessLegsStatus',
-      recKey:    'restlessLegsRecommendation',
-      interKey:  'restlessLegsInterpretation',  // note: correct spelling here
+      match: 'Restless Legs Syndrome',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
     {
-      match:     'Narcolepsy',
-      statusKey: 'narcolepsyStatus',
-      recKey:    'narcolepsyRecommendation',
-      interKey:  'narcolepsyInterpritation',
+      match: 'Narcolepsy',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
     {
-      match:     'Chronic Obstructive',
-      statusKey: 'chronicObstructiveStatus',
-      recKey:    'chronicObstructiveRecommendation',
-      interKey:  'chronicObstructiveInterpritation',
+      match: 'Chronic Obstructive',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
     {
-      match:     'Lactose Intolerance',
-      statusKey: 'lactoseIntoleranceStatus',
-      recKey:    'lactoseIntoleranceRecommendation',
-      interKey:  'lactoseIntoleranceInterpritation',
+      match: 'Lactose Intolerance',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
     {
-      match:     'Gluten Intolerance',
-      statusKey: 'glutenIntoleranceStatus',
-      recKey:    'glutenIntoleranceRecommendation',
-      interKey:  'glutenIntoleranceInterpritation',
+      match: 'Gluten Intolerance',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
     {
-      match:     'Higher HDL',
-      statusKey: 'higherHDLStatus',
-      recKey:    'higherHDLRecommendation',
-      interKey:  'higherHDLInterpritation',
-    },
-
-    // ── Computed values (from algorithms) ────────────────────────────────────
-    {
-      match:     'Vitamin B9',
-      statusKey: 'vitB9Status',
-      recKey:    'vitB9Recommendation',
-      interKey:  'vitB9Interpretation',
+      match: 'Higher HDL',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
     {
-      match:     'Vitamin D',
-      statusKey: 'vitDStatus',
-      recKey:    'vitDRecommendation',
-      interKey:  'vitDInterpritation',
+      match: 'Vitamin B9',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
+    },
+    {
+      match: 'Vitamin D',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
   ],
 
-  // ── Vendor / branding ─────────────────────────────────────────────────────
   vendor: {
-    vendorName:    'NMC Genetics',
-    vendorId:      'NMC',
-    themeColor:    '#ffa700',            // Sleep theme color (amber/orange)
-    logoUrl:       `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
-    coverLogoUrl:  `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
-    primaryColor:  '',
-    textColor:     '',
+    vendorName: 'NMC Genetics',
+    vendorId: 'NMC',
+    themeColor: '#ffa700',
+    logoUrl: `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
+    coverLogoUrl: `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
+    primaryColor: '',
+    textColor: '',
     footerLogoUrl: '',
     vendorAddress: '',
     vendorContact: '',
-    imageOverlay:  '',
-    coverPageImg:  '',
+    imageOverlay: '',
+    coverPageImg: '',
   },
 
-  // ── Template ──────────────────────────────────────────────────────────────
-  // The sleep template function — to be created from PHP template
   templateFn: buildSleepReportHtml as any,
 };
