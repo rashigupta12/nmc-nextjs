@@ -68,12 +68,12 @@ export function VendorResetPasswordForm() {
         <div className="flex flex-col items-center space-y-2">
           <Image
             alt="logo"
-            src="/next.svg"
+           src="/neotech.png"
             height={100}
             width={100}
             className="shadow-md hover:shadow-xl transition-shadow duration-300 p-4"
           />
-          <h1 className="text-red-500 font-bold text-xl">Vendor Portal</h1>
+          <h1 className="text-red-500 font-bold text-xl">Business Partner Portal</h1>
         </div>
 
         {/* Header */}

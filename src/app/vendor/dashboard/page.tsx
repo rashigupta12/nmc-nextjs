@@ -15,7 +15,7 @@ export default function VendorDashboardPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Welcome, {session?.user?.name}</h1>
           <p className="text-muted-foreground mt-1">
-            Vendor Dashboard
+            Business Partner Dashboard
           </p>
         </div>
         <Badge className="px-3 py-1">{session?.user?.vendorCode}</Badge>
@@ -64,19 +64,19 @@ export default function VendorDashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Vendor Dashboard Coming Soon</CardTitle>
+          <CardTitle>Business Partner Dashboard Coming Soon</CardTitle>
           <CardDescription>
-            You have successfully logged into the vendor portal.
+            You have successfully logged into the Business Partner portal.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground">
-            Full vendor dashboard functionality including sample management, report generation, and settings will be implemented here.
+            Full Business Partner dashboard functionality including sample management, report generation, and settings will be implemented here.
           </p>
           <div className="flex gap-2">
             <Button>
               <Settings className="h-4 w-4 mr-2" />
-              Vendor Settings
+              Business Partner Settings
             </Button>
           </div>
         </CardContent>
