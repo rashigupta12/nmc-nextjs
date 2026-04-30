@@ -88,16 +88,16 @@ export function VendorLoginForm({ slug }: VendorLoginFormProps) {
 
         {/* Login Header */}
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Vendor Login</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Business Partner Login</h1>
           <p className="mt-2 text-sm text-gray-600">
-            Sign in to access your vendor dashboard
+            Sign in to access your Business Partner dashboard
           </p>
         </div>
 
         {/* Slug Display */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
           <p className="text-sm text-blue-700">
-            <span className="font-semibold">Vendor:</span> {slug}
+            <span className="font-semibold">Business Partner:</span> {slug}
           </p>
         </div>
 
@@ -115,7 +115,7 @@ export function VendorLoginForm({ slug }: VendorLoginFormProps) {
                   <FormControl>
                     <Input
                       {...field}
-                      placeholder="vendor@company.com"
+                      placeholder="businesspartner@company.com"
                       className="h-12 rounded-lg border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       type="email"
                       disabled={isPending}

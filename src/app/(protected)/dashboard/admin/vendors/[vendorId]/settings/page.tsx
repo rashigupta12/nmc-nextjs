@@ -447,7 +447,7 @@ export default function VendorSettingsPage() {
           </Section>
 
           {/* 17 · VENDOR ADDRESS */}
-          <Section icon={MapPin} title="Vendor Address">
+          <Section icon={MapPin} title="Business Partner Address">
             <RichTextEditor value={w("vendorAddress") || ""} onChange={sv("vendorAddress")} placeholder="Official address for reports…" minHeight={100} />
           </Section>
 
