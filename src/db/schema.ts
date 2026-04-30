@@ -212,7 +212,7 @@ export const VendorsTable = pgTable(
     vendorCode: text("vendor_code").notNull().unique(),
     status: VendorStatus("status").default("ACTIVE").notNull(),
     name: text("name").notNull(),
-    contactNo: text("contact_no").notNull(),
+    contactNo: text("contact_no"),
     gender: text("gender").notNull(),
     costCentreNo: text("cost_centre_no"),
     mrNo: text("mr_no"),

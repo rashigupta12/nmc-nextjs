@@ -43,6 +43,13 @@
       "when": 1777372687611,
       "tag": "0005_empty_colleen_wing",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1777541791249,
+      "tag": "0006_motionless_maginty",
+      "breakpoints": true
     }
   ]
 }

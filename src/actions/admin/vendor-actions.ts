@@ -24,7 +24,7 @@ async function generateLoginUrl(companyName: string): Promise<string> {
     .replace(/^-|-$/g, "");
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  return `${baseUrl}/vendor/login/${slug}`;
+  return `${baseUrl}/business/login/${slug}`;
 }
 
 // Send welcome email to new vendor
@@ -35,7 +35,7 @@ async function sendVendorWelcomeEmail(
   tempPassword: string,
   vendorCode: string
 ) {
-  const loginPageUrl = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL}/vendor/login`;
+  const loginPageUrl = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL}/business/login`;
   
   const emailHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -92,7 +92,7 @@ async function sendVendorPasswordResetEmail(
   vendorCode: string
 ) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL;
-  const resetPasswordUrl = `${baseUrl}/vendor/reset-password`;
+  const resetPasswordUrl = `${baseUrl}/business/reset-password`;
   const url = `${resetPasswordUrl}?token=${resetToken}&email=${email}`;
   
   const emailHtml = `
@@ -166,8 +166,8 @@ export async function createVendor(formData: FormData) {
     // Extract form data
     const vendorData = {
       name: formData.get("name") as string,
-      email: formData.get("email") as string,
-      contactNo: formData.get("contactNo") as string,
+      email: (formData.get("email") as string) || "",
+      contactNo: (formData.get("contactNo") as string) || "",
       gender: formData.get("gender") as string,
       address: formData.get("address") as string,
       city: formData.get("city") as string | null,
@@ -214,7 +214,7 @@ export async function createVendor(formData: FormData) {
     const loginUrl = await generateLoginUrl(vendorData.name);
     
     // Extract login slug from URL
-    const loginSlug = loginUrl.split('/vendor/login/')[1];
+    const loginSlug = loginUrl.split('/business/login/')[1];
     
     const tempPassword = Math.random().toString(36).slice(-8);
     const hashedPassword = await hash(tempPassword, 10);
@@ -352,7 +352,7 @@ export async function createVendor(formData: FormData) {
       }
     }
 
-    revalidatePath("/dashboard/admin/vendors");
+    revalidatePath("/dashboard/admin/business");
 
     return {
       success: true,
@@ -460,7 +460,7 @@ export async function updateVendorStatus(
       .where(eq(VendorsTable.id, vendorId))
       .returning();
 
-    revalidatePath("/dashboard/admin/vendors");
+    revalidatePath("/dashboard/admin/business");
 
     return {
       success: true,
@@ -491,7 +491,7 @@ export async function deleteVendor(vendorId: string) {
       .where(eq(VendorsTable.id, vendorId))
       .returning();
 
-    revalidatePath("/dashboard/admin/vendors");
+    revalidatePath("/dashboard/admin/business");
 
     return {
       success: true,
@@ -548,8 +548,8 @@ export async function updateVendor(vendorId: string, formData: FormData) {
       .where(eq(VendorsTable.id, vendorId))
       .returning();
 
-    revalidatePath("/dashboard/admin/vendors");
-    revalidatePath(`/dashboard/admin/vendors/${vendorId}`);
+    revalidatePath("/dashboard/admin/business");
+    revalidatePath(`/dashboard/admin/business/${vendorId}`);
 
     return {
       success: true,
@@ -597,7 +597,7 @@ export async function resetVendorPassword(vendorId: string) {
       .where(eq(VendorsTable.id, vendorId));
 
     // Send password reset email with temporary password
-    const loginPageUrl = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL}/vendor/login`;
+    const loginPageUrl = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL}/business/login`;
     const loginUrl = vendor.loginurl || loginPageUrl;
     
     const emailHtml = `
@@ -645,7 +645,7 @@ export async function resetVendorPassword(vendorId: string) {
       emailHtml
     );
 
-    revalidatePath(`/dashboard/admin/vendors/${vendorId}`);
+    revalidatePath(`/dashboard/admin/business/${vendorId}`);
 
     return {
       success: true,
@@ -679,7 +679,7 @@ export async function initiateVendorPasswordReset(email: string) {
 
     // Send password reset email
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL;
-    const resetUrl = `${baseUrl}/vendor/reset-password?token=${resetToken}&email=${email}`;
+    const resetUrl = `${baseUrl}/business/reset-password?token=${resetToken}&email=${email}`;
     
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

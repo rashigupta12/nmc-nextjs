@@ -1,0 +1,1 @@
+ALTER TABLE "vendors" ALTER COLUMN "contact_no" DROP NOT NULL;
