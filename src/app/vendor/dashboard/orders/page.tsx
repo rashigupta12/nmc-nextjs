@@ -1,18 +1,10 @@
-/*eslint-disable @typescript-eslint/no-explicit-any */
 // src/app/(protected)/vendor/dashboard/orders/page.tsx
 "use client";
 
-import React, { JSX } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -21,34 +13,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import {
-  AlertCircle,
-  Calendar,
+  Activity,
+  Barcode,
+  CheckCircle,
   ChevronLeft,
   ChevronRight,
-  Eye,
+  ClipboardList,
+  Clock,
+  Clock8,
+  FlaskConical,
   Loader2,
   Package,
   Search,
   Truck,
-  X,
-  Activity,
-  ClipboardList,
-  Clock,
-  FileText,
-  User,
-  Barcode,
-  FlaskConical,
-  CheckCircle,
-  XCircle,
-  Clock8,
   Upload,
+  User,
+  X,
+  XCircle,
+  PlusCircle
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
+import { JSX, useCallback, useEffect, useMemo, useState } from "react";
 
 type Order = {
   id: string;
@@ -119,44 +106,47 @@ export default function OrdersPage() {
       const res = await fetch(`/api/orders?${params.toString()}`);
       const data = await res.json();
 
-      // Map the data according to the actual API response structure
-      const mapped: Order[] = (data.orders || []).map((order: any) => ({
-        id: order.id,
-        orderNo: order.orderNo,
-        sampleId: order.sampleId,
-        patientId: order.patientId,
-        patientFName: order.patient?.patientFName,
-        patientLName: order.patient?.patientLName,
-        vendorId: order.vendorId,
-        vendorName: order.vendor?.name,
-        createdBy: order.createdBy,
-        createdByName: order.createdByUser?.name,
-        addedBy: order.addedBy,
-        shipmentStatus: order.shipmentStatus,
-        orderDate: order.orderDate,
-        statusCode: order.statusCode,
-        remark: order.remark,
-        totalAmount: order.totalAmount,
-        currency: order.currency,
-        paymentStatus: order.paymentStatus,
-        createdAt: order.createdAt,
-        updatedAt: order.updatedAt,
-        sample: order.sample ? {
-          id: order.sample.id,
-          sampleId: order.sample.sampleId,
-          testCatalogId: order.sample.testCatalogId,
-          testName: order.sample.testName,
-          testCode: order.sample.testCode,
-          sampleType: order.sample.sampleType,
-          status: order.sample.status,
-          tatDueAt: order.sample.tatDueAt,
-          subtests: order.sample.subtests || [],
-        } : undefined,
-      }));
+      if (data.success) {
+        const mapped: Order[] = (data.orders || []).map((order: any) => ({
+          id: order.id,
+          orderNo: order.orderNo,
+          sampleId: order.sampleId,
+          patientId: order.patientId,
+          patientFName: order.patient?.patientFName,
+          patientLName: order.patient?.patientLName,
+          vendorId: order.vendorId,
+          vendorName: order.vendor?.name,
+          createdBy: order.createdBy,
+          createdByName: order.createdByUser?.name,
+          addedBy: order.addedBy,
+          shipmentStatus: order.shipmentStatus,
+          orderDate: order.orderDate,
+          statusCode: order.statusCode,
+          remark: order.remark,
+          totalAmount: order.totalAmount,
+          currency: order.currency,
+          paymentStatus: order.paymentStatus,
+          createdAt: order.createdAt,
+          updatedAt: order.updatedAt,
+          sample: order.sample ? {
+            id: order.sample.id,
+            sampleId: order.sample.sampleId,
+            testCatalogId: order.sample.testCatalogId,
+            testName: order.sample.testName,
+            testCode: order.sample.testCode,
+            sampleType: order.sample.sampleType,
+            status: order.sample.status,
+            tatDueAt: order.sample.tatDueAt,
+            subtests: order.sample.subtests || [],
+          } : undefined,
+        }));
 
-      setOrders(mapped);
-      setTotalPages(Math.ceil(mapped.length / itemsPerPage));
-      setTotalRecords(mapped.length);
+        setOrders(mapped);
+        setTotalPages(Math.ceil(mapped.length / itemsPerPage));
+        setTotalRecords(mapped.length);
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Failed to load orders' });
+      }
     } catch (err) {
       console.error("Failed to fetch orders:", err);
       setMessage({ type: 'error', text: 'Failed to load orders' });
@@ -294,33 +284,37 @@ export default function OrdersPage() {
     );
   };
 
-  const getStatusCodeBadge = (code: string) => {
-    const colors: Record<string, string> = {
-      O001: "bg-blue-100 text-blue-800",
-      O002: "bg-yellow-100 text-yellow-800",
-      O003: "bg-green-100 text-green-800",
-      O004: "bg-red-100 text-red-800",
-    };
-    return (
-      <Badge className={colors[code] || "bg-gray-100 text-gray-800"}>
-        {code}
-      </Badge>
-    );
-  };
-
   const hasActiveFilters = filters.search !== '' || 
     filters.shipmentStatus !== 'ALL' || 
     filters.paymentStatus !== 'ALL' ||
     filters.dateFrom !== '' ||
     filters.dateTo !== '';
 
- const handleUpload = (sampleId: string | null | undefined) => {
-  if (!sampleId) {
-    setMessage({ type: 'error', text: 'No sample ID available for this order' });
-    return;
-  }
-  router.push(`/vendor/dashboard/samples/${sampleId}`);
-};
+  const handleUpload = (sampleId: string | null | undefined) => {
+    if (!sampleId) {
+      setMessage({ type: 'error', text: 'No sample ID available for this order' });
+      return;
+    }
+    router.push(`/vendor/dashboard/samples/${sampleId}`);
+  };
+
+  const handleAddInfo = (sampleId: string | null | undefined, testId: string | null | undefined, patientId: string) => {
+    if (!sampleId) {
+      setMessage({ type: 'error', text: 'No sample ID available for this order' });
+      return;
+    }
+    if (!testId) {
+      setMessage({ type: 'error', text: 'No test ID available for this order' });
+      return;
+    }
+    
+    const params = new URLSearchParams({
+      patientId: patientId,
+      sampleId: sampleId,
+      testId: testId
+    });
+    router.push(`/vendor/dashboard/additional-info?${params.toString()}`);
+  };
 
   // Helper function to format date
   const formatDate = (dateString: string) => {
@@ -328,16 +322,6 @@ export default function OrdersPage() {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-    });
-  };
-
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
     });
   };
 
@@ -374,46 +358,6 @@ export default function OrdersPage() {
                 />
               </div>
             </div>
-            
-            {/* <div className="w-44">
-              <Label className="text-xs text-gray-500">Shipment Status</Label>
-              <Select 
-                value={filters.shipmentStatus} 
-                onValueChange={(v) => setFilters(prev => ({ ...prev, shipmentStatus: v }))}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All Shipment Status</SelectItem>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="CREATED">Created</SelectItem>
-                  <SelectItem value="SHIPPED">Shipped</SelectItem>
-                  <SelectItem value="IN_TRANSIT">In Transit</SelectItem>
-                  <SelectItem value="RECEIVED">Received</SelectItem>
-                  <SelectItem value="PARTIALLY_RECEIVED">Partially Received</SelectItem>
-                </SelectContent>
-              </Select>
-            </div> */}
-
-            {/* <div className="w-40">
-              <Label className="text-xs text-gray-500">Payment Status</Label>
-              <Select 
-                value={filters.paymentStatus} 
-                onValueChange={(v) => setFilters(prev => ({ ...prev, paymentStatus: v }))}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All Payment Status</SelectItem>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="PAID">Paid</SelectItem>
-                  <SelectItem value="FAILED">Failed</SelectItem>
-                  <SelectItem value="REFUNDED">Refunded</SelectItem>
-                </SelectContent>
-              </Select>
-            </div> */}
 
             <div className="w-40">
               <Label className="text-xs text-gray-500">From Date</Label>
@@ -491,7 +435,6 @@ export default function OrdersPage() {
                     <TableHead className="font-semibold">Patient Info</TableHead>
                     <TableHead className="font-semibold">Test & Sample</TableHead>
                     <TableHead className="font-semibold">Status</TableHead>
-                    {/* <TableHead className="font-semibold">Payment</TableHead> */}
                     <TableHead className="font-semibold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -499,17 +442,16 @@ export default function OrdersPage() {
                   {paginatedOrders.map((order) => {
                     const patientName = `${order.patientFName || ''} ${order.patientLName || ''}`.trim() || 'N/A';
                     const mainTest = order.sample;
+                    const testId = mainTest?.testCatalogId;
                     return (
                       <TableRow key={order.id} className="hover:bg-gray-50">
                         <TableCell>
                           <div>
                             <div className="font-medium text-gray-900 flex items-center gap-2">
                               <span className="text-blue-600">{order.orderNo}</span>
-                              
                             </div>
                             <div className="text-xs text-gray-500 mt-1 space-x-2">
                               <span>Created: {formatDate(order.createdAt)}</span>
-                              
                             </div>
                             {order.remark && (
                               <div className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">
@@ -527,7 +469,7 @@ export default function OrdersPage() {
                             {order.sampleId && (
                               <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
                                 <Barcode className="h-3 w-3" />
-                                <span> {order.sample?.sampleId || order.sampleId}</span>
+                                <span>Sample: {order.sample?.sampleId || order.sampleId}</span>
                               </div>
                             )}
                           </div>
@@ -560,30 +502,30 @@ export default function OrdersPage() {
                             </div>
                           </div>
                         </TableCell>
-                        {/* <TableCell>
-                          <div className="space-y-2">
-                            {getPaymentStatusBadge(order.paymentStatus)}
-                            {order.totalAmount && (
-                              <div className="text-sm font-medium text-gray-900">
-                                {order.currency} {parseFloat(order.totalAmount).toLocaleString()}
-                              </div>
-                            )}
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleAddInfo(order.sample?.sampleId, testId, order.patientId)}
+                              className="h-8 w-8 p-0 hover:bg-green-50 hover:text-green-700"
+                              title="Add Additional Information"
+                              disabled={!order.sample?.sampleId || !testId}
+                            >
+                              <PlusCircle className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleUpload(order.sample?.sampleId)}
+                              className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-700"
+                              title="Upload Sample"
+                              disabled={!order.sample?.sampleId}
+                            >
+                              <Upload className="h-4 w-4" />
+                            </Button>
                           </div>
-                        </TableCell> */}
-                     <TableCell className="text-right">
-  <div className="flex justify-end gap-2">
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={() => handleUpload(order.sample?.sampleId ?? null)}
-      className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-700"
-      title="Upload Sample"
-      disabled={!order.sample?.sampleId}
-    >
-      <Upload className="h-4 w-4" />
-    </Button>
-  </div>
-</TableCell>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
