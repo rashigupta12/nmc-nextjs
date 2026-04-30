@@ -30,25 +30,25 @@
 
 ## ⚙️ Business Partner Settings
 
-* [ ] 🔴 ✨ Remove Cover Logo option from Business Partner settings
-* [ ] 🟡 Logo upload field
-* [ ] 🟡 Cover Page setting
-* [ ] 🟡 Back Page setting
-* [ ] 🟡 Welcome Content *(rich text / template)*
-* [ ] 🟡 Signature setting
-* [ ] 🟡 Business Partner Address *(used in reports / docs)*
+* [x] 🔴 ✨ Remove Cover Logo option from Business Partner settings
+* [x] 🟡 Logo upload field
+* [x] 🟡 Cover Page setting
+* [x] 🟡 Back Page setting
+* [x] 🟡 Welcome Content *(rich text / template)*
+* [x] 🟡 Signature setting
+* [x] 🟡 Business Partner Address *(used in reports / docs)*
 
 ## 🌿 General & Category Settings
 
-* [ ] 🔵 General Settings section under BP config
-* [ ] 🔵 Wellness category toggle / config
-* [ ] 🔵 Skin category toggle / config
+* [x] 🔵 General Settings section under BP config
+* [x] 🔵 Wellness category toggle / config
+* [x] 🔵 Skin category toggle / config
 
 ## 📄 Report Settings
 
-* [ ] 🟡 Report Settings section: list all report names
-* [ ] 🟡 Each report has configurable sections *(toggle / reorder)*
-* [ ] 🟡 Report structure builder / editor
+* [x] 🟡 Report Settings section: list all report names
+* [x] 🟡 Each report has configurable sections *(toggle / reorder)*
+* [x] 🟡 Report structure builder / editor
 
 ## 🧬 Gene Variants
 
