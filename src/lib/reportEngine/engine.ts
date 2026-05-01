@@ -1,9 +1,10 @@
+// lib/reportEngine/GenericReportService.ts
 // ============================================================
 // Report Engine — GenericReportService
 //
 // Pure logic layer. No Mongoose imports, no Puppeteer.
 // Accepts plain data objects, returns GenericApiResponse.
-// Fully unit-testable in isolation.
+// Updated to properly handle auto-fill from PatientFinalReport.
 // ============================================================
 
 import {
@@ -30,9 +31,8 @@ const DEFAULT_STATUS_PRIORITY: Record<string, number> = {
 function normaliseStatus(raw: string): string {
   const s = (raw ?? '').toLowerCase();
   if (s === 'normal' || s === 'low') return 'Good';
-  if (s === 'medium')                return 'Average';
-  if (s === 'high')                  return 'Poor';
-  // Already in Good / Average / Poor form — pass through
+  if (s === 'medium') return 'Average';
+  if (s === 'high') return 'Poor';
   if (s === 'good' || s === 'average' || s === 'poor')
     return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
   return raw || 'Average';
@@ -46,7 +46,7 @@ function worstStatus(
   return (priority[a] ?? 0) >= (priority[b] ?? 0) ? a : b;
 }
 
-// ─── Input shape contracts (loose — matches what the route passes in) ─────────
+// ─── Input shape contracts ────────────────────────────────────────────────────
 
 export interface RawPatientInput {
   patientId: string;
@@ -79,8 +79,6 @@ export class GenericReportService {
     this.priority = config.statusPriorityMap ?? DEFAULT_STATUS_PRIORITY;
   }
 
-  // ── Main entry point ────────────────────────────────────────────────────────
-
   async processReportData(
     patient: RawPatientInput,
     sample: RawSampleInput,
@@ -90,15 +88,15 @@ export class GenericReportService {
     patientAdditional: Record<string, any> | null
   ): Promise<GenericApiResponse> {
     const PatientDetails = this.buildPatientDetails(patient, patientAdditional);
-    const SampleDetails  = this.buildSampleDetails(sample);
+    const SampleDetails = this.buildSampleDetails(sample);
 
     // 1. Match gene rows against page data + page desc → flat ConditionData[]
     const flat = this.matchAndBuildConditions(geneReportData, pageData, pageDesc);
 
-    // 2. Apply patientAdditional overrides (auto-fill)
-    await this.applyAutoFill(flat, patientAdditional);
+    // 2. Apply patientAdditional overrides (from PatientFinalReport)
+    this.applyAutoFill(flat, patientAdditional);
 
-    // 3. Group by section (or "flat" if no sections declared)
+    // 3. Group by section
     const sections = this.groupBySections(flat);
 
     return {
@@ -108,8 +106,8 @@ export class GenericReportService {
       addDetails: patientAdditional,
       meta: {
         reportTypeId: this.config.id,
-        reportLabel:  this.config.label,
-        generatedAt:  new Date().toISOString(),
+        reportLabel: this.config.label,
+        generatedAt: new Date().toISOString(),
       },
     };
   }
@@ -124,39 +122,35 @@ export class GenericReportService {
     const result: ConditionData[] = [];
 
     for (let i = 0; i < geneReportData.length; i++) {
-      // Unwrap Mongoose _doc if present
       const raw = (geneReportData[i] as any)?._doc ?? geneReportData[i];
 
-      // Match page data (condition metadata)
       const pd = this.findPageData(raw, pageData);
-
-      // Match page desc (gene description)
       const pdesc = this.findPageDesc(raw, pageDesc);
 
       const response = normaliseStatus(raw.status || raw.response || '');
 
       const gene: GeneData = {
         uniqueid: raw.uniqueId ?? raw.uniqueid ?? '',
-        name:             raw.gene            ?? '',
-        test_variant:     raw.test_variant    ?? '',
-        report_variant:   raw.report_variant  ?? '',
+        name: raw.gene ?? '',
+        test_variant: raw.test_variant ?? '',
+        report_variant: raw.report_variant ?? '',
         response,
-        interpretation:   raw.interpretation  ?? '',
-        status:           raw.status          ?? '',
-        gene_description: pdesc?.gene_desc    ?? raw.gene_desc ?? '',
+        interpretation: raw.interpretation ?? '',
+        status: raw.status ?? '',
+        gene_description: pdesc?.gene_desc ?? raw.gene_desc ?? '',
       };
 
       const condition: ConditionData = {
-        condition_name:    raw.condition_name    ?? pd?.condition_name    ?? '',
+        condition_name: raw.condition_name ?? pd?.condition_name ?? '',
         display_condition: raw.display_condition ?? pd?.display_condition ?? raw.condition_name ?? '',
-        recommendation:    raw.recommendation   ?? '',
-        interpretation:    raw.interpretation   ?? '',
-        condition_status:  response,
-        condition_desc:    pd?.condition_desc   ?? raw.condition_desc   ?? '',
-        heading1:          pd?.heading1         ?? raw.heading1         ?? '',
-        heading_desc1:     pd?.heading_desc1    ?? raw.heading_desc1    ?? '',
-        heading_desc2:     pd?.heading_desc2    ?? raw.heading_desc2    ?? '',
-        sectionId:         raw.sectionId        ?? '',
+        recommendation: raw.recommendation ?? '',
+        interpretation: raw.interpretation ?? '',
+        condition_status: response,
+        condition_desc: pd?.condition_desc ?? raw.condition_desc ?? '',
+        heading1: pd?.heading1 ?? raw.heading1 ?? '',
+        heading_desc1: pd?.heading_desc1 ?? raw.heading_desc1 ?? '',
+        heading_desc2: pd?.heading_desc2 ?? raw.heading_desc2 ?? '',
+        sectionId: raw.sectionId ?? '',
         gene: [gene],
       };
 
@@ -165,93 +159,79 @@ export class GenericReportService {
 
     return result;
   }
-// src/lib/reportEngine/GenericReportService.ts
 
-private findPageData(raw: any, pageData: any[]): any | null {
-  const match = pageData.find(gpd => {
-    const d = (gpd as any)?._doc ?? gpd;
-    return (
-      // ✅ Fix 1: Use 'uniqueId' (camelCase) to match the DB field name
-      (d.unique_id && raw.uniqueId &&
-        d.unique_id.toLowerCase() === raw.uniqueId.toLowerCase()) ||
-      // ✅ Fix 2: Case-insensitive gene name fallback
-      (d.gene && raw.gene &&
-        d.gene.toLowerCase() === raw.gene.toLowerCase())
-    );
-  });
-  return match ? ((match as any)?._doc ?? match) : null;
-}
+  private findPageData(raw: any, pageData: any[]): any | null {
+    const match = pageData.find(gpd => {
+      const d = (gpd as any)?._doc ?? gpd;
+      return (
+        (d.unique_id && raw.uniqueId &&
+          d.unique_id.toLowerCase() === raw.uniqueId.toLowerCase()) ||
+        (d.gene && raw.gene &&
+          d.gene.toLowerCase() === raw.gene.toLowerCase())
+      );
+    });
+    return match ? ((match as any)?._doc ?? match) : null;
+  }
 
-private findPageDesc(raw: any, pageDesc: any[]): any | null {
-  const match = pageDesc.find(gpd => {
-    const d = (gpd as any)?._doc ?? gpd;
-    return (
-      // ✅ Fix 1: Use 'uniqueId' (camelCase) to match the DB field name
-      (d.uniqueid && raw.uniqueId &&
-        d.uniqueid.toLowerCase() === raw.uniqueId.toLowerCase()) ||
-      // ✅ Fix 2: Case-insensitive gene name fallback
-      (d.gene && raw.gene &&
-        d.gene.toLowerCase() === raw.gene.toLowerCase())
-    );
-  });
-  return match ? ((match as any)?._doc ?? match) : null;
-}
+  private findPageDesc(raw: any, pageDesc: any[]): any | null {
+    const match = pageDesc.find(gpd => {
+      const d = (gpd as any)?._doc ?? gpd;
+      return (
+        (d.uniqueid && raw.uniqueId &&
+          d.uniqueid.toLowerCase() === raw.uniqueId.toLowerCase()) ||
+        (d.gene && raw.gene &&
+          d.gene.toLowerCase() === raw.gene.toLowerCase())
+      );
+    });
+    return match ? ((match as any)?._doc ?? match) : null;
+  }
 
-  // ── Step 2: Auto-fill overrides ──────────────────────────────────────────────
+  // ── Step 2: Auto-fill overrides from PatientFinalReport ───────────────────────
 
-  private async applyAutoFill(
+  private applyAutoFill(
     conditions: ConditionData[],
     pa: Record<string, any> | null
-  ): Promise<void> {
+  ): void {
     if (!pa) return;
 
     for (const mapping of this.config.autoFillMappings) {
-      const status = pa[mapping.statusKey] as string | undefined;
-      if (!status) continue;
-
+      // Find matching condition
       const matched = conditions.filter(c =>
         c.condition_name.toLowerCase().includes(mapping.match.toLowerCase()) ||
         c.display_condition.toLowerCase().includes(mapping.match.toLowerCase())
       );
+      
       if (!matched.length) continue;
 
-      // Resolve recommendation / interpretation
-      let rec   = pa[mapping.recKey]   as string | undefined;
-      let inter = pa[mapping.interKey] as string | undefined;
-
-      // If an async resolver is provided (e.g. DB lookup for Women's Health),
-      // use its result instead
-      if (mapping.asyncResolver) {
-        const resolved = await mapping.asyncResolver(mapping.match, status);
-        if (resolved) {
-          rec   = resolved.recommendation;
-          inter = resolved.interpretation;
-        }
-      }
-
       for (const cond of matched) {
-        cond.condition_status = status;
-        if (rec)   cond.recommendation = rec;
-        if (inter) cond.interpretation = inter;
+        // Look up the status from patientAdditional by condition name
+        const conditionOverride = pa[cond.condition_name] || pa[cond.display_condition];
+        
+        if (conditionOverride?.status) {
+          cond.condition_status = conditionOverride.status;
+        }
+        if (conditionOverride?.recommendation) {
+          cond.recommendation = conditionOverride.recommendation;
+        }
+        if (conditionOverride?.interpretation) {
+          cond.interpretation = conditionOverride.interpretation;
+        }
 
         // Propagate to gene level
         cond.gene.forEach(g => {
-          g.status = status;
-          if (inter) g.interpretation = inter;
+          if (conditionOverride?.status) g.status = conditionOverride.status;
+          if (conditionOverride?.interpretation) g.interpretation = conditionOverride.interpretation;
         });
       }
     }
   }
 
-  // ── Step 3: Group by section then deduplicate by display_condition ────────────
+  // ── Step 3: Group by section then deduplicate by display_condition ───────────
 
-  private groupBySections(
-    conditions: ConditionData[]
-  ): Record<string, ReportData> {
+  private groupBySections(conditions: ConditionData[]): Record<string, ReportData> {
     const sections: Record<string, ReportData> = {};
 
     if (this.config.sections.length === 0) {
-      // Flat report — everything under "flat"
       sections['flat'] = this.groupByDisplayCondition(conditions);
       return sections;
     }
@@ -264,11 +244,6 @@ private findPageDesc(raw: any, pageDesc: any[]): any | null {
     return sections;
   }
 
-  /**
-   * Deduplicates conditions by display_condition:
-   * All rows sharing the same display_condition are merged into one entry
-   * with their genes combined — mirrors the PHP deduplication logic.
-   */
   private groupByDisplayCondition(conditions: ConditionData[]): ReportData {
     const map = new Map<string, ConditionData[]>();
 
@@ -281,7 +256,7 @@ private findPageDesc(raw: any, pageDesc: any[]): any | null {
     const result: ReportData = {};
 
     map.forEach((items, key) => {
-      const base   = items[0];
+      const base = items[0];
       const merged: ConditionData = {
         ...base,
         gene: items.map(i => i.gene[0]).filter(Boolean),
@@ -299,18 +274,20 @@ private findPageDesc(raw: any, pageDesc: any[]): any | null {
     pa: Record<string, any> | null
   ): PatientDetails {
     return {
+      hospital: '',
+      referredBy: '',
       patientId: pd.patientId,
       name: [pd.patientFName, pd.patientMName, pd.patientLName]
         .filter(Boolean)
         .join(' ')
         .replace(/\s+/g, ' ')
         .trim(),
-      email:   pd.email,
-      age:     parseInt(pd.age, 10) || 0,
-      gender:  pd.gender === 'M' ? 'Male' : pd.gender === 'F' ? 'Female' : 'Other',
-      weight:  pd.weight  ?? '',
-      height:  pd.height  ?? '',
-      activityLevel:     pa?.activityLevel?.toString()              ?? '',
+      email: pd.email,
+      age: parseInt(pd.age, 10) || 0,
+      gender: pd.gender === 'M' ? 'Male' : pd.gender === 'F' ? 'Female' : 'Other',
+      weight: pd.weight ?? '',
+      height: pd.height ?? '',
+      activityLevel: pa?.activityLevel?.toString() ?? '',
       dailyCalorieIntake: pa ? parseInt(pa.dailyCalorieIntake, 10) || 0 : 0,
     };
   }
@@ -320,20 +297,20 @@ private findPageDesc(raw: any, pageDesc: any[]): any | null {
     const tmt = (d?: Date) => d ? d.toTimeString().split(' ')[0] : '';
 
     return {
-      kitBarcode:     sd.sampleId  ?? '',
-      orderNo:        sd.orderNo   ?? '',
-      test:           sd.test      ?? '',
-      subtests:       '',
-      sample_date:    fmt(sd.collectionDate),
-      sample_time:    tmt(sd.collectionDate),
-      resample_date:  fmt(sd.receivedDate),
-      lab_date:       sd.status === 'Completed' ? new Date().toISOString().split('T')[0] : '',
-      report_date:    sd.geneticData?.reportGenerated ? new Date().toISOString().split('T')[0] : '',
-      sampleType:     'SALIVA',
-      addedBy:        'System',
+      kitBarcode: sd.sampleId ?? '',
+      orderNo: sd.orderNo ?? '',
+      test: sd.test ?? '',
+      subtests: '',
+      sample_date: fmt(sd.collectionDate),
+      sample_time: tmt(sd.collectionDate),
+      resample_date: fmt(sd.receivedDate),
+      lab_date: sd.status === 'Completed' ? new Date().toISOString().split('T')[0] : '',
+      report_date: sd.geneticData?.reportGenerated ? new Date().toISOString().split('T')[0] : '',
+      sampleType: 'SALIVA',
+      addedBy: 'System',
       vendorSampleId: sd.sampleId ?? '',
-      tatDate:        '',
-      pdfpath:        '',
+      tatDate: '',
+      pdfpath: '',
     };
   }
 }

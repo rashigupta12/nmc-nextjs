@@ -1,90 +1,68 @@
+// lib/reportEngine/reports/menhealth.config.ts
 // ============================================================
 // Report Config — Men Health
 //
-// This is the CANONICAL reference config for Men Health Report.
-// Pattern: Same as Immunity (TestMaster-based + patientAdditional)
-//
-// What this file owns:
-//   - Which TestMaster record to scope page data to
-//   - Which patientAdditional model to query
-//   - Auto-fill mappings (condition name → patientAdditional fields)
-//   - Vendor / branding settings
-//   - The template function (imported from menHealth template file)
+// Updated for dual database architecture
 // ============================================================
 
 import { buildMenHealthReportHtml } from '@/lib/menHealthPdf/menHealthTemplate';
 import { ReportTypeConfig } from '../types';
 
-// Template import
-
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
+// TODO: Replace with actual UUID from Neon test_catalog table
+const TEST_UUID = '00000000-0000-0000-0000-000000000004'; // Replace with actual UUID
+
 export const menHealthReportConfig: ReportTypeConfig = {
-  // ── Identity ──────────────────────────────────────────────────────────────
   id: 'men-health',
   label: 'Men Health Report',
 
-  // ── Data sourcing ─────────────────────────────────────────────────────────
-  // Uses TestMaster lookup: fetches GenePageData + GenePageDesc filtered
-  // by the TestMaster record matching testId for Men's Health
   pageDataSource: {
     type: 'testMaster',
-    testId: 'NMC-MH01',           // Men's Health test ID from TestMaster
+    testId: TEST_UUID,  // UUID from Neon test_catalog
     pageDataModel: 'GenePageData',
     pageDescModel: 'GenePageDesc',
   },
 
-  // Mongoose model name for the patient additional collection
-  patientAdditionalModel: 'PatientAdditionalMenHealth',
+  patientAdditionalModel: 'PatientFinalReport',
 
-  // ── Sections ──────────────────────────────────────────────────────────────
   sections: [],
 
-  // ── Auto-fill mappings ────────────────────────────────────────────────────
-  // Each entry: when patientAdditional[statusKey] has a value,
-  // override all conditions whose name/display_condition includes `match`.
   autoFillMappings: [
-    // Prostate Cancer
     {
       match: 'Prostate Cancer',
-      statusKey: 'prostateCancerStatus',
-      recKey: 'prostateCancerRecommendation',
-      interKey: 'prostateCancerInterpritation',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Alopecia Areata (Spot Baldness)
     {
       match: 'Alopecia Areata',
-      statusKey: 'alopeciaAreataStatus',
-      recKey: 'alopeciaAreataRecommendation',
-      interKey: 'alopeciaAreataInterpritation',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Low Testosterone
     {
       match: 'Low Testosterone',
-      statusKey: 'lowTestosteroneStatus',
-      recKey: 'lowTestosteroneRecommendation',
-      interKey: 'lowTestosteroneInterpritation',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
   ],
+
   vendor: {
     vendorName: 'NMC Genetics',
     vendorId: 'NMC',
-
     themeColor: '#0F5A6A',
     primaryColor: '#1F7A8C',
     textColor: '#4d4d4d',
-
     logoUrl: `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
     coverLogoUrl: `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
     footerLogoUrl: '',
-
     vendorAddress: '',
     vendorContact: '',
-
     imageOverlay: '',
     coverPageImg: `${BASE_URL}/assets/reportimg/mens_images/mens_cover.jpg`,
   },
 
-  // ── Template ──────────────────────────────────────────────────────────────
   templateFn: buildMenHealthReportHtml as any,
 };

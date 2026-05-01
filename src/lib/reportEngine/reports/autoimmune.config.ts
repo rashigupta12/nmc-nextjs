@@ -1,7 +1,8 @@
+// lib/reportEngine/reports/autoimmune.config.ts
 // ============================================================
 // Report Config — Autoimmune Health
 //
-// Pattern: Same as Eye Health (TestMaster-based + patientAdditional)
+// Updated for dual database architecture
 // ============================================================
 
 import { buildAutoimmuneReportHtml } from '@/lib/autoimmunePdf/autoimmuneTemplate';
@@ -9,101 +10,90 @@ import { ReportTypeConfig } from '../types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
+// TODO: Replace with actual UUID from Neon test_catalog table
+const TEST_UUID = '464ed484-6de9-421c-a5c7-0d318dc48bd6'; // Replace with actual UUID
+
 export const autoimmuneReportConfig: ReportTypeConfig = {
-  // ── Identity ──────────────────────────────────────────────────────────────
-  id:    'autoimmune-health',
+  id: 'autoimmune-health',
   label: 'Autoimmune Health Report',
 
-  // ── Data sourcing ─────────────────────────────────────────────────────────
   pageDataSource: {
-    type:          'testMaster',
-    testId:        'NMC-AI01',           // Autoimmune Health test ID from TestMaster
+    type: 'testMaster',
+    testId: TEST_UUID,  // Now using UUID instead of human-readable string
     pageDataModel: 'GenePageData',
     pageDescModel: 'GenePageDesc',
   },
 
-  // Mongoose model name for the patient additional collection
-  patientAdditionalModel: 'PatientAdditionalAutoimmuneHealth',
+  // Unified PatientFinalReport model
+  patientAdditionalModel: 'PatientFinalReport',
 
-  // ── Sections ──────────────────────────────────────────────────────────────
   sections: [],
 
-  // ── Auto-fill mappings ────────────────────────────────────────────────────
   autoFillMappings: [
-    // Ankylosing Spondylitis
     {
-      match:     'Ankylosing Spondylitis',
-      statusKey: 'ankylosingSpondylitisStatus',
-      recKey:    'ankylosingSpondylitisRecommendation',
-      interKey:  'ankylosingSpondylitisInterpritation',
+      match: 'Ankylosing Spondylitis',
+      statusKey: 'status',     // Now accessed via condition object
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Crohn's Disease
     {
-      match:     'Crohns Disease',
-      statusKey: 'crohnsDiseaseStatus',
-      recKey:    'crohnsDiseaseRecommendation',
-      interKey:  'crohnsDiseaseInterpritation',
+      match: 'Crohns Disease',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Celiac Disease
     {
-      match:     'Celiac Disease',
-      statusKey: 'celiacDiseaseStatus',
-      recKey:    'celiacDiseaseRecommendation',
-      interKey:  'celiacDiseaseInterpritation',
+      match: 'Celiac Disease',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Systemic Lupus Erythematosus
     {
-      match:     'Systemic lupus erythematosus',
-      statusKey: 'systemicLupusStatus',
-      recKey:    'systemicLupusRecommendation',
-      interKey:  'systemicLupusInterpretation',
+      match: 'Systemic lupus erythematosus',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Rheumatoid Arthritis
     {
-      match:     'Rheumatoid Arthritis',
-      statusKey: 'rheumatoidArthritisStatus',
-      recKey:    'rheumatoidArthritisRecommendation',
-      interKey:  'rheumatoidArthritisInterpritation',
+      match: 'Rheumatoid Arthritis',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Sjögren's Syndrome
     {
-      match:     'Sj grens Syndrome',
-      statusKey: 'sjGrensStatus',
-      recKey:    'sjGrensRecommendation',
-      interKey:  'sjGrensInterpritation',
+      match: 'Sj grens Syndrome',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Primary Biliary Cirrhosis
     {
-      match:     'Primary Biliary Cirrhosis',
-      statusKey: 'primaryBiliaryStatus',
-      recKey:    'primaryBiliaryRecommendation',
-      interKey:  'primaryBiliaryInterpritation',
+      match: 'Primary Biliary Cirrhosis',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Psoriasis
     {
-      match:     'Psoriasis',
-      statusKey: 'psoriasisStatus',
-      recKey:    'psoriasisRecommendation',
-      interKey:  'psoriasisInterpritation',
+      match: 'Psoriasis',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
   ],
 
-  // ── Vendor / branding ─────────────────────────────────────────────────────
   vendor: {
-    vendorName:    'NMC Genetics',
-    vendorId:      'NMC',
-    themeColor:    '#5b244e',            // Autoimmune Health theme color (deep purple)
-    logoUrl:       `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
-    coverLogoUrl:  `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
-    primaryColor:  '',
-    textColor:     '#4d4d4d',
+    vendorName: 'NMC Genetics',
+    vendorId: 'NMC',
+    themeColor: '#5b244e',
+    logoUrl: `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
+    coverLogoUrl: `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
+    primaryColor: '',
+    textColor: '#4d4d4d',
     footerLogoUrl: '',
     vendorAddress: '',
     vendorContact: '',
-    imageOverlay:  '',
-    coverPageImg:  `${BASE_URL}/assets/reportimg/autoimmune_img/coverPage.jpg`,
+    imageOverlay: '',
+    coverPageImg: `${BASE_URL}/assets/reportimg/autoimmune_img/coverPage.jpg`,
   },
 
-  // ── Template ────────────────────────────────────────────────────────────────
   templateFn: buildAutoimmuneReportHtml as any,
 };

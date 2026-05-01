@@ -1,51 +1,42 @@
+// lib/reportEngine/reports/clopidogrel.config.ts
 // ============================================================
 // Report Config — Clopidogrel
 //
 // Pharmacogenetic report for Clopidogrel sensitivity.
 // Uses ClopidogrelRecommendation reference data for phenotype interpretation.
-//
-// What this file owns:
-//   - TestMaster testId: "NMC_CLOPI"
-//   - Custom patientAdditionalResolver for ClopidogrelRecommendation lookup
-//   - Single flat section (no A/B/C sections)
-//   - Vendor/branding settings with lab address
-//   - Template function
+// 
+// Note: This report type does NOT use PatientFinalReport.
+// Data comes directly from GeneReportTemp + ClopidogrelRecommendation
 // ============================================================
 
 import { ReportTypeConfig } from '../types';
-
-// Template import
 import { buildClopidogrelReportHtml } from '@/lib/clopidogrelPdf/clopidogrelTemplate';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
+// TODO: Replace with actual UUID from Neon test_catalog table
+// Run: SELECT id FROM test_catalog WHERE test_code = 'NMC_CLOPI';
+const CLOPIDOGREL_TEST_UUID = '00000000-0000-0000-0000-000000000010';
+
 export const clopidogrelReportConfig: ReportTypeConfig = {
-  // ── Identity ──────────────────────────────────────────────────────────────
   id: 'clopidogrel',
   label: 'Clopidogrel Report',
 
-  // ── Data sourcing ─────────────────────────────────────────────────────────
-  // Uses TestMaster lookup: fetches GenePageData + GenePageDesc filtered
-  // by the TestMaster record matching testId "NMC_CLOPI"
   pageDataSource: {
     type: 'testMaster',
-    testId: 'NMC_CLOPI',
+    testId: CLOPIDOGREL_TEST_UUID,  // UUID from Neon test_catalog
     pageDataModel: 'GenePageData',
     pageDescModel: 'GenePageDesc',
   },
 
-  // Uses ClopidogrelRecommendation model - will be resolved by custom resolver
+  // Uses ClopidogrelRecommendation model - this is correct
+  // The route.ts has special handling for 'clopidogrel' report_type
   patientAdditionalModel: 'ClopidogrelRecommendation',
 
-  // ── Sections ──────────────────────────────────────────────────────────────
-  // Flat report - no sections
   sections: [],
 
-  // ── Auto-fill mappings ────────────────────────────────────────────────────
-  // No auto-fill needed - data comes from ClopidogrelRecommendation lookup
   autoFillMappings: [],
 
-  // ── Vendor / branding ─────────────────────────────────────────────────────
   vendor: {
     vendorName: 'NEOTECH WORLD LAB PRIVATE LIMITED',
     vendorId: 'NEOTECH',
@@ -61,6 +52,5 @@ export const clopidogrelReportConfig: ReportTypeConfig = {
     coverPageImg: '',
   },
 
-  // ── Template ──────────────────────────────────────────────────────────────
   templateFn: buildClopidogrelReportHtml as any,
 };

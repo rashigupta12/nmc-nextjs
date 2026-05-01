@@ -1,43 +1,41 @@
+// lib/reportEngine/reports/hypertension.config.ts
 // ============================================================
 // Report Config — Hypertension
 //
 // Pharmacogenetic report for Hypertension medication guidance.
 // Data comes directly from geneReportTemp (hypertension_report data)
+//
+// Note: This report type does NOT use PatientFinalReport.
+// Data comes directly from GeneReportTemp only
 // ============================================================
 
 import { buildHypertensionReportHtml } from '@/lib/hypertensionPdf/hypertensionTemplate';
 import { ReportTypeConfig } from '../types';
 
-
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
+// TODO: Replace with actual UUID from Neon test_catalog table
+// Run: SELECT id FROM test_catalog WHERE test_code = 'NMC-HTN';
+const HYPERTENSION_TEST_UUID = '00000000-0000-0000-0000-000000000013';
+
 export const hypertensionReportConfig: ReportTypeConfig = {
-  // ── Identity ──────────────────────────────────────────────────────────────
   id: 'hypertension',
   label: 'Hypertension Pharmacogenomic Panel',
 
-  // ── Data sourcing ─────────────────────────────────────────────────────────
-  // Uses testMaster approach (like statin) - this matches your existing pattern
   pageDataSource: {
     type: 'testMaster',
-    testId: 'NMC-HTN',  // Your test ID from MongoDB
+    testId: HYPERTENSION_TEST_UUID,  // UUID from Neon test_catalog
     pageDataModel: 'GenePageData',
     pageDescModel: 'GenePageDesc',
   },
 
-  // No separate patient additional model needed - leave undefined
+  // No separate patient additional model - data comes directly from GeneReportTemp
   patientAdditionalModel: undefined,
 
-  // ── Sections ──────────────────────────────────────────────────────────────
-  // Sections should match the structure from your existing configs
-  // Looking at your working reports, sections might be defined differently
-  // Let me check the actual SectionConfig type
   sections: [],
 
-  // ── Auto-fill mappings ────────────────────────────────────────────────────
   autoFillMappings: [],
 
-  // ── Vendor / branding ─────────────────────────────────────────────────────
   vendor: {
     vendorName: 'NEOTECH WORLD LAB PRIVATE LIMITED',
     vendorId: 'NEOTECH',
@@ -53,6 +51,5 @@ export const hypertensionReportConfig: ReportTypeConfig = {
     coverPageImg: '',
   },
 
-  // ── Template ──────────────────────────────────────────────────────────────
   templateFn: buildHypertensionReportHtml as any,
 };

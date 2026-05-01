@@ -1,82 +1,74 @@
+// lib/reportEngine/reports/eye.config.ts
 // ============================================================
 // Report Config — Eye Health
 //
-// Pattern: Same as Men's Health (TestMaster-based + patientAdditional)
+// Updated for dual database architecture
 // ============================================================
 
 import { buildEyeHealthReportHtml } from '@/lib/eyeHealthPdf/eyeHealthTemplate';
 import { ReportTypeConfig } from '../types';
 
-
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
+// TODO: Replace with actual UUID from Neon test_catalog table
+const TEST_UUID = '00000000-0000-0000-0000-000000000001'; // Replace with actual UUID
+
 export const eyeHealthReportConfig: ReportTypeConfig = {
-  // ── Identity ──────────────────────────────────────────────────────────────
-  id:    'eye-health',
+  id: 'eye-health',
   label: 'Eye Health Report',
 
-  // ── Data sourcing ─────────────────────────────────────────────────────────
   pageDataSource: {
-    type:          'testMaster',
-    testId:        'NMC-EH01',           // Eye Health test ID from TestMaster
+    type: 'testMaster',
+    testId: TEST_UUID,  // UUID from Neon test_catalog
     pageDataModel: 'GenePageData',
     pageDescModel: 'GenePageDesc',
   },
 
-  // Mongoose model name for the patient additional collection
-  patientAdditionalModel: 'PatientAdditionalEyeHealth',
+  patientAdditionalModel: 'PatientFinalReport',
 
-  // ── Sections ──────────────────────────────────────────────────────────────
   sections: [],
 
-  // ── Auto-fill mappings ────────────────────────────────────────────────────
   autoFillMappings: [
-    // Diabetic Retinopathy
     {
-      match:     'Diabetic Retinopathy',
-      statusKey: 'diabeticRetinopathyStatus',
-      recKey:    'diabeticRetinopathyRecommendation',
-      interKey:  'diabeticRetinopathyInterpritation',
+      match: 'Diabetic Retinopathy',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Glaucoma
     {
-      match:     'Glaucoma',
-      statusKey: 'glaucomaStatus',
-      recKey:    'glaucomaRecommendation',
-      interKey:  'glaucomaInterpritation',
+      match: 'Glaucoma',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Age Related Macular Degeneration
     {
-      match:     'Age-related macular degeneration',
-      statusKey: 'ageRelatedStatus',
-      recKey:    'ageRelatedRecommendation',
-      interKey:  'ageRelatedInterpritation',
+      match: 'Age-related macular degeneration',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
-    // Retinal Occlusion
     {
-      match:     'Retinal occlusion',
-      statusKey: 'retinalOcclusionStatus',
-      recKey:    'retinalOcclusionRecommendation',
-      interKey:  'retinalOcclusionInterpretation',  // Note: correct spelling
+      match: 'Retinal occlusion',
+      statusKey: 'status',
+      recKey: 'recommendation',
+      interKey: 'interpretation',
     },
   ],
 
-  // ── Vendor / branding ─────────────────────────────────────────────────────
   vendor: {
-    vendorName:    'NMC Genetics',
-    vendorId:      'NMC',
-    themeColor:    '#3FA8A8',             // Eye Health theme color (teal)
-    logoUrl:       `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
-    coverLogoUrl:  `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
-    primaryColor:  '',
-    textColor:     '#4d4d4d',
+    vendorName: 'NMC Genetics',
+    vendorId: 'NMC',
+    themeColor: '#3FA8A8',
+    logoUrl: `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
+    coverLogoUrl: `${BASE_URL}/nmc_report_img/nmcgeneticslogo.png`,
+    primaryColor: '',
+    textColor: '#4d4d4d',
     footerLogoUrl: '',
     vendorAddress: '',
     vendorContact: '',
-    imageOverlay:  '',
-    coverPageImg:  `${BASE_URL}/assets/reportimg/eye_images/cover.jpg`,
+    imageOverlay: '',
+    coverPageImg: `${BASE_URL}/assets/reportimg/eye_images/cover.jpg`,
   },
 
-  // ── Template (to be created later) ────────────────────────────────────────
   templateFn: buildEyeHealthReportHtml as any,
 };
