@@ -323,7 +323,7 @@ export default function SampleDetailsPage() {
         <h2 className="text-xl font-semibold text-gray-900">Sample Not Found</h2>
         <p className="text-gray-500 mt-2">The sample you're looking for doesn't exist.</p>
         <Button asChild className="mt-6">
-          <Link href="/vendor/dashboard/orders">Back to Orders</Link>
+          <Link href="/business/dashboard/orders">Back to Orders</Link>
         </Button>
       </div>
     );
@@ -340,7 +340,7 @@ export default function SampleDetailsPage() {
         {/* Header */}
         <div className="mb-6">
           <Link
-            href="/vendor/dashboard/orders"
+            href="/business/dashboard/orders"
             className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors mb-4 text-sm"
           >
             <ArrowLeft className="h-4 w-4" /> Back to Orders

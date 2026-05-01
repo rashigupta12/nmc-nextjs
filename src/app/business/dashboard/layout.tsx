@@ -1,4 +1,4 @@
-// src/app/(protected)/vendor/dashboard/layout.tsx
+// src/app/(protected)/business/dashboard/layout.tsx
 "use client";
 
 import React, { useState } from "react";
@@ -44,18 +44,18 @@ export default function VendorLayout({
   };
 
   const isActive = (href: string) => {
-    if (href === "/vendor/dashboard") {
+    if (href === "/business/dashboard") {
       return pathname === href;
     }
     return pathname.startsWith(href);
   };
 
   const isPatientsActive = () => {
-    return pathname.startsWith("/vendor/dashboard/patients");
+    return pathname.startsWith("/business/dashboard/patients");
   };
 
   const isOrdersActive = () => {
-    return pathname.startsWith("/vendor/dashboard/orders");
+    return pathname.startsWith("/business/dashboard/orders");
   };
 
   return (
@@ -65,10 +65,10 @@ export default function VendorLayout({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-semibold text-gray-800">
-              NeoTech Vendor Portal
+              NeoTech Business Partner Portal
             </h1>
             <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-              { "VENDOR"}
+              { "Business Partner"}
             </span>
           </div>
 
@@ -78,18 +78,18 @@ export default function VendorLayout({
                 <Avatar className="h-8 w-8">
                   <AvatarImage src="/images/user_alt_icon.png" alt="Vendor" />
                   <AvatarFallback>
-                    {session?.user?.name?.charAt(0) || "VN"}
+                    {session?.user?.name?.charAt(0) || "BP"}
                   </AvatarFallback>
                 </Avatar>
                 <span className="text-sm font-medium text-gray-700">
-                  {session?.user?.name || "Vendor User"}
+                  {session?.user?.name || "BP User"}
                 </span>
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-56" align="end">
               <div className="space-y-1">
                 <button 
-                  onClick={() => router.push("/vendor/dashboard/profile")}
+                  onClick={() => router.push("/business/dashboard/profile")}
                   className="w-full flex items-center gap-2 rounded-lg p-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                 >
                   <Settings className="h-4 w-4" />
@@ -113,15 +113,15 @@ export default function VendorLayout({
         <aside className="w-64 bg-white border-r min-h-[calc(100vh-64px)] p-4 sticky top-[65px] overflow-y-auto">
           <nav className="space-y-1">
             {/* Dashboard */}
-            <Link href="/vendor/dashboard">
+            <Link href="/business/dashboard">
               <button
                 className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                  pathname === "/vendor/dashboard"
+                  pathname === "/business/dashboard"
                     ? "bg-blue-50 text-blue-700"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <Home className={`h-4 w-4 ${pathname === "/vendor/dashboard" ? "text-blue-700" : ""}`} />
+                <Home className={`h-4 w-4 ${pathname === "/business/dashboard" ? "text-blue-700" : ""}`} />
                 <span className="text-sm font-medium">Dashboard</span>
               </button>
             </Link>
@@ -152,10 +152,10 @@ export default function VendorLayout({
                   isPatientsOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
-                <Link href="/vendor/dashboard/patients">
+                <Link href="/business/dashboard/patients">
                   <button
                     className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                      pathname === "/vendor/dashboard/patients"
+                      pathname === "/business/dashboard/patients"
                         ? "bg-blue-50 text-blue-700"
                         : "text-gray-600 hover:bg-gray-100"
                     }`}
@@ -165,10 +165,10 @@ export default function VendorLayout({
                   </button>
                 </Link>
 
-                <Link href="/vendor/dashboard/patients/create">
+                <Link href="/business/dashboard/patients/create">
                   <button
                     className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                      pathname === "/vendor/dashboard/patients/create"
+                      pathname === "/business/dashboard/patients/create"
                         ? "bg-blue-50 text-blue-700"
                         : "text-gray-600 hover:bg-gray-100"
                     }`}
@@ -206,10 +206,10 @@ export default function VendorLayout({
                   isOrdersOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
-                <Link href="/vendor/dashboard/orders">
+                <Link href="/business/dashboard/orders">
                   <button
                     className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                      pathname === "/vendor/dashboard/orders"
+                      pathname === "/business/dashboard/orders"
                         ? "bg-blue-50 text-blue-700"
                         : "text-gray-600 hover:bg-gray-100"
                     }`}
@@ -219,10 +219,10 @@ export default function VendorLayout({
                   </button>
                 </Link>
 
-                <Link href="/vendor/dashboard/orders/create">
+                <Link href="/business/dashboard/orders/create">
                   <button
                     className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                      pathname === "/vendor/dashboard/orders/create"
+                      pathname === "/business/dashboard/orders/create"
                         ? "bg-blue-50 text-blue-700"
                         : "text-gray-600 hover:bg-gray-100"
                     }`}
@@ -235,54 +235,54 @@ export default function VendorLayout({
             </div>
 
             {/* Additional vendor sections (matching admin style) */}
-            <Link href="/vendor/dashboard/shipments">
+            <Link href="/business/dashboard/shipments">
               <button
                 className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                  pathname.startsWith("/vendor/dashboard/shipments")
+                  pathname.startsWith("/business/dashboard/shipments")
                     ? "bg-blue-50 text-blue-700"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <Truck className={`h-4 w-4 ${pathname.startsWith("/vendor/dashboard/shipments") ? "text-blue-700" : ""}`} />
+                <Truck className={`h-4 w-4 ${pathname.startsWith("/business/dashboard/shipments") ? "text-blue-700" : ""}`} />
                 <span className="text-sm font-medium">Shipments ⚠️</span>
               </button>
             </Link>
 
-            <Link href="/vendor/dashboard/reports">
+            <Link href="/business/dashboard/reports">
               <button
                 className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                  pathname.startsWith("/vendor/dashboard/reports")
+                  pathname.startsWith("/business/dashboard/reports")
                     ? "bg-blue-50 text-blue-700"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <FileText className={`h-4 w-4 ${pathname.startsWith("/vendor/dashboard/reports") ? "text-blue-700" : ""}`} />
+                <FileText className={`h-4 w-4 ${pathname.startsWith("/business/dashboard/reports") ? "text-blue-700" : ""}`} />
                 <span className="text-sm font-medium">Reports ⚠️</span>
               </button>
             </Link>
 
-            <Link href="/vendor/dashboard/analytics">
+            <Link href="/business/dashboard/analytics">
               <button
                 className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                  pathname.startsWith("/vendor/dashboard/analytics")
+                  pathname.startsWith("/business/dashboard/analytics")
                     ? "bg-blue-50 text-blue-700"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <BarChart3 className={`h-4 w-4 ${pathname.startsWith("/vendor/dashboard/analytics") ? "text-blue-700" : ""}`} />
+                <BarChart3 className={`h-4 w-4 ${pathname.startsWith("/business/dashboard/analytics") ? "text-blue-700" : ""}`} />
                 <span className="text-sm font-medium">Analytics ⚠️</span>
               </button>
             </Link>
 
-            <Link href="/vendor/dashboard/helpdesk">
+            <Link href="/business/dashboard/helpdesk">
               <button
                 className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                  pathname.startsWith("/vendor/dashboard/helpdesk")
+                  pathname.startsWith("/business/dashboard/helpdesk")
                     ? "bg-blue-50 text-blue-700"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <HelpCircle className={`h-4 w-4 ${pathname.startsWith("/vendor/dashboard/helpdesk") ? "text-blue-700" : ""}`} />
+                <HelpCircle className={`h-4 w-4 ${pathname.startsWith("/business/dashboard/helpdesk") ? "text-blue-700" : ""}`} />
                 <span className="text-sm font-medium">Helpdesk ⚠️</span>
               </button>
             </Link>

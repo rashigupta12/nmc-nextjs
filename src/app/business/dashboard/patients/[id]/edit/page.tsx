@@ -1,4 +1,4 @@
-// src/app/(protected)/vendor/dashboard/patients/[id]/edit/page.tsx
+// src/app/(protected)/business/dashboard/patients/[id]/edit/page.tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -264,12 +264,12 @@ export default function EditPatientPage() {
         setBpDiastolic(patient.bp_diastolic || "");
       } else {
         Swal.fire("Error", "Patient not found", "error");
-        router.push("/vendor/dashboard/patients");
+        router.push("/business/dashboard/patients");
       }
     } catch (error) {
       console.error("Error fetching patient:", error);
       Swal.fire("Error", "Failed to load patient data", "error");
-      router.push("/vendor/dashboard/patients");
+      router.push("/business/dashboard/patients");
     } finally {
       setFetchingPatient(false);
     }
@@ -541,7 +541,7 @@ export default function EditPatientPage() {
           timer: 2000,
           showConfirmButton: false,
         });
-        router.push("/vendor/dashboard/patients");
+        router.push("/business/dashboard/patients");
       } else {
         const err = await res.json();
         Swal.fire({
@@ -1017,7 +1017,7 @@ export default function EditPatientPage() {
         {/* Header */}
         <div className="mb-8">
           <Link 
-            href="/vendor/dashboard/patients" 
+            href="/business/dashboard/patients" 
             className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors mb-4"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -1056,7 +1056,7 @@ export default function EditPatientPage() {
               asChild 
               className="border-gray-300 text-gray-700 hover:bg-gray-50"
             >
-              <Link href="/vendor/dashboard/patients">Cancel</Link>
+              <Link href="/business/dashboard/patients">Cancel</Link>
             </Button>
           </div>
         </form>

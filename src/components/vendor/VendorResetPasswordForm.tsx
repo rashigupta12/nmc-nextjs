@@ -20,6 +20,23 @@ import { FormError } from "@/components/form/form-error";
 import { VendorResetPasswordSchema } from "@/validaton-schema";
 import { VENDOR_LOGIN_REDIRECT } from "@/routes";
 
+// Create a base schema with password rules
+const PasswordRulesSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one digit")
+    .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
+});
+
+// Use the new schema instead of VendorResetPasswordSchema
 export function VendorResetPasswordForm() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -28,8 +45,8 @@ export function VendorResetPasswordForm() {
   const [success, setSuccess] = useState<string | undefined>(undefined);
   const [isPending, startTransition] = useTransition();
 
-  const form = useForm<z.infer<typeof VendorResetPasswordSchema>>({
-    resolver: zodResolver(VendorResetPasswordSchema),
+  const form = useForm<z.infer<typeof PasswordRulesSchema>>({
+    resolver: zodResolver(PasswordRulesSchema),
     defaultValues: {
       currentPassword: "",
       newPassword: "",
@@ -37,7 +54,7 @@ export function VendorResetPasswordForm() {
     },
   });
 
-  async function onSubmit(data: z.infer<typeof VendorResetPasswordSchema>) {
+  async function onSubmit(data: z.infer<typeof PasswordRulesSchema>) {
     if (isPending) return;
 
     setError(undefined);
@@ -68,7 +85,7 @@ export function VendorResetPasswordForm() {
         <div className="flex flex-col items-center space-y-2">
           <Image
             alt="logo"
-           src="/neotech.png"
+            src="/neotech.png"
             height={100}
             width={100}
             className="shadow-md hover:shadow-xl transition-shadow duration-300 p-4"
@@ -90,6 +107,33 @@ export function VendorResetPasswordForm() {
             <span className="font-semibold">First time login detected.</span>{" "}
             You must set a new password to access your dashboard.
           </p>
+        </div>
+
+        {/* Password Requirements Box */}
+        <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+          <p className="text-xs font-semibold text-blue-800 mb-2">Password Requirements:</p>
+          <ul className="text-xs text-blue-700 space-y-1">
+            <li className="flex items-center gap-2">
+              <span className="text-blue-500">•</span>
+              At least 8 characters long
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-blue-500">•</span>
+              At least one uppercase letter (A-Z)
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-blue-500">•</span>
+              At least one lowercase letter (a-z)
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-blue-500">•</span>
+              At least one digit (0-9)
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-blue-500">•</span>
+              At least one special character (!@#$%^&* etc.)
+            </li>
+          </ul>
         </div>
 
         {/* Form */}

@@ -1,5 +1,5 @@
 /*eslint-disable @typescript-eslint/no-explicit-any */
-// src/app/(protected)/vendor/dashboard/patients/page.tsx
+// src/app/(protected)/business/dashboard/patients/page.tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -247,11 +247,11 @@ export default function PatientsPage() {
   const hasActiveFilters = filters.search !== '' || filters.gender !== 'ALL' || filters.status !== 'ALL';
 
   const handleView = (id: string) => {
-    window.location.href = `/vendor/dashboard/patients/${id}`;
+    window.location.href = `/business/dashboard/patients/${id}`;
   };
 
   const handleEdit = (id: string) => {
-    window.location.href = `/vendor/dashboard/patients/${id}/edit`;
+    window.location.href = `/business/dashboard/patients/${id}/edit`;
   };
 
   // Helper function to format date
@@ -275,7 +275,7 @@ export default function PatientsPage() {
             </p>
           </div>
           <Button asChild className="gap-2 bg-blue-600 hover:bg-blue-700">
-            <Link href="/vendor/dashboard/patients/create">
+            <Link href="/business/dashboard/patients/create">
               <Plus className="h-4 w-4" /> Add Patient
             </Link>
           </Button>
@@ -360,7 +360,7 @@ export default function PatientsPage() {
             </p>
             {!hasActiveFilters && (
               <Button asChild className="mt-4" size="sm">
-                <Link href="/vendor/dashboard/patients/create">
+                <Link href="/business/dashboard/patients/create">
                   <Plus className="h-4 w-4 mr-1" /> Add Patient
                 </Link>
               </Button>

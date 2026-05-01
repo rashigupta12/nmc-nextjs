@@ -1,4 +1,4 @@
-// src/app/(protected)/vendor/dashboard/additional-info/page.tsx
+// src/app/(protected)/business/dashboard/additional-info/page.tsx
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";

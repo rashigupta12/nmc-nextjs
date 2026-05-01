@@ -378,7 +378,7 @@ export default function CreateOrderPage() {
         {/* Header */}
         <div className="mb-8">
           <Link 
-            href="/vendor/dashboard/orders" 
+            href="/business/dashboard/orders" 
             className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors mb-4"
           >
             <ArrowLeft className="h-4 w-4" />

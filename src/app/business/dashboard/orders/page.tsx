@@ -1,4 +1,4 @@
-// src/app/(protected)/vendor/dashboard/orders/page.tsx
+// src/app/(protected)/business/dashboard/orders/page.tsx
 "use client";
 
 import { Badge } from "@/components/ui/badge";
@@ -351,7 +351,7 @@ export default function OrdersPage() {
       setMessage({ type: 'error', text: 'No sample ID available for this order' });
       return;
     }
-    router.push(`/vendor/dashboard/samples/${sampleId}`);
+    router.push(`/business/dashboard/samples/${sampleId}`);
   };
 
   const handleAddInfo = (sampleId: string | null | undefined, testId: string | null | undefined, patientId: string) => {
@@ -369,7 +369,7 @@ export default function OrdersPage() {
       sampleId: sampleId,
       testId: testId
     });
-    router.push(`/vendor/dashboard/additional-info?${params.toString()}`);
+    router.push(`/business/dashboard/additional-info?${params.toString()}`);
   };
 
   const handleGenerateReport = async (sampleId: string | null | undefined, reportTypeId: string, format: 'pdf' | 'html' = 'html') => {
@@ -444,7 +444,7 @@ export default function OrdersPage() {
             </p>
           </div>
           <Button asChild className="gap-2 bg-blue-600 hover:bg-blue-700">
-            <Link href="/vendor/dashboard/orders/create">
+            <Link href="/business/dashboard/orders/create">
               <ClipboardList className="h-4 w-4" /> Create Order
             </Link>
           </Button>
@@ -526,7 +526,7 @@ export default function OrdersPage() {
             </p>
             {!hasActiveFilters && (
               <Button asChild className="mt-4" size="sm">
-                <Link href="/vendor/dashboard/orders/create">
+                <Link href="/business/dashboard/orders/create">
                   <ClipboardList className="h-4 w-4 mr-1" /> Create Order
                 </Link>
               </Button>

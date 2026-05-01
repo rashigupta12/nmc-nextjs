@@ -1,4 +1,4 @@
-// src/app/(protected)/vendor/dashboard/patients/[id]/page.tsx
+// src/app/(protected)/business/dashboard/patients/[id]/page.tsx
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -107,12 +107,12 @@ export default function PatientDetailsPage() {
           setPatient(data.patient);
         } else {
           Swal.fire("Error", "Patient not found", "error");
-          router.push("/vendor/dashboard/patients");
+          router.push("/business/dashboard/patients");
         }
       } catch (error) {
         console.error("Error fetching patient details:", error);
         Swal.fire("Error", "Failed to load patient details", "error");
-        router.push("/vendor/dashboard/patients");
+        router.push("/business/dashboard/patients");
       } finally {
         setLoading(false);
       }
@@ -184,7 +184,7 @@ export default function PatientDetailsPage() {
           <div className="flex items-center justify-between">
             <div>
               <Link
-                href="/vendor/dashboard/patients"
+                href="/business/dashboard/patients"
                 className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors mb-4"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -208,7 +208,7 @@ export default function PatientDetailsPage() {
             </div>
             <div className="flex gap-3">
               <Button
-                onClick={() => router.push(`/vendor/dashboard/patients/${patientId}/edit`)}
+                onClick={() => router.push(`/business/dashboard/patients/${patientId}/edit`)}
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 Edit Patient
