@@ -66,7 +66,7 @@ export async function updateVendorPassword(
     // This forces a fresh session with updated isPasswordReset = false
     
     // Get vendor's unique login slug to redirect back to their specific login page
-    const vendorLoginUrl = `/vendor/login/${vendor.loginSlug}?passwordUpdated=1`;
+    const vendorLoginUrl = `/business/login/${vendor.loginSlug}?passwordUpdated=1`;
     
     // Return redirect url to client instead of throwing inside try catch
     return {
