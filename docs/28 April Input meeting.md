@@ -28,14 +28,9 @@
 * [x] Reduce + button size, and move it to top the card
 * [x] From 2 col to 3 col in addrss form
 
-
-
 ## 👥 Business Plann
 
-* [] , Update: <http://localhost:3000/vendor/login/asdfghj> to [http://localhost:3000/business/login/asdfghj
-
-
-
+* [x] Update: <http://localhost:3000/vendor/login/asdfghj> to [http://localhost:3000/business/login/asdfghj
 
 ## ⚙️ Business Partner Settings
 

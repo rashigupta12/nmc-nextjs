@@ -14,13 +14,13 @@ import { NextResponse } from "next/server";
 const { auth } = NextAuth(authConfig);
 
 function isVendorAuthRoute(pathname: string): boolean {
-  // Vendor login pages are dynamic: /vendor/login/[slug]
-  return pathname.startsWith("/vendor/login");
+  // Vendor login pages are dynamic: /business/login/[slug]
+  return pathname.startsWith("/business/login");
 }
 
 function isVendorRoute(pathname: string): boolean {
   // All vendor pages should be accessible to logged-in users
-  return pathname.startsWith("/vendor/");
+  return pathname.startsWith("/business/");
 }
 
 export default auth(async (req) => {
@@ -64,7 +64,7 @@ export default auth(async (req) => {
     // ✅ STRICT ROUTE BOUNDARIES - MULTI-TENANT ISOLATION
     // Vendors cannot access any admin/dashboard routes
     if (token.role === 'VENDOR' && nextUrl.pathname.startsWith('/dashboard')) {
-      return NextResponse.redirect(new URL("/vendor/dashboard", req.url));
+      return NextResponse.redirect(new URL("/business/dashboard", req.url));
     }
 
     // Admins/Owners cannot access any vendor routes
@@ -76,10 +76,10 @@ export default auth(async (req) => {
     if (
       token.role === "VENDOR" &&
       token.isPasswordReset === true &&
-      nextUrl.pathname !== "/vendor/reset-password"
+      nextUrl.pathname !== "/business/reset-password"
     ) {
       return NextResponse.redirect(
-        new URL("/vendor/reset-password", req.url)
+        new URL("/business/reset-password", req.url)
       );
     }
 
