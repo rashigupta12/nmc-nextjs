@@ -506,7 +506,7 @@ export default function OrdersPage() {
                     <TableHead className="font-semibold">Order Details</TableHead>
                     <TableHead className="font-semibold">Patient Info</TableHead>
                     <TableHead className="font-semibold">Test & Sample</TableHead>
-                    <TableHead className="font-semibold">Status</TableHead>
+                    <TableHead className="font-semibold">Order Status</TableHead>
                     <TableHead className="font-semibold text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
