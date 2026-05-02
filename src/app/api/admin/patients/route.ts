@@ -4,10 +4,22 @@ import { db } from "@/db";
 import { PatientsTable, VendorsTable, UsersTable } from "@/db/schema";
 import { eq, ilike, and, or, desc, asc, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
 
-// GET - List all patients with optional filters
+// GET - List all patients with optional filters (filtered by vendor)
 export async function GET(req: NextRequest) {
   try {
+    // Get session to verify vendor
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const vendorId = session.user.id;
+    const vendorCode = session.user.vendorCode;
+
+    console.log("Fetching patients for vendor:", { vendorId, vendorCode });
+
     const { searchParams } = new URL(req.url);
 
     const page = parseInt(searchParams.get("page") ?? "1");
@@ -15,30 +27,24 @@ export async function GET(req: NextRequest) {
     const offset = (page - 1) * limit;
 
     const search = searchParams.get("search") ?? "";
-    const vendorId = searchParams.get("vendorId");
     const gender = searchParams.get("gender");
     const isActive = searchParams.get("isActive");
     const sortBy = searchParams.get("sortBy") ?? "createdAt";
     const sortOrder = searchParams.get("sortOrder") ?? "desc";
 
-    // Build where conditions
-    const conditions = [];
+    // Build where conditions - ALWAYS filter by vendor
+    const conditions = [eq(PatientsTable.vendorId, vendorId)];
 
-    if (search) {
-      conditions.push(
-        or(
-          ilike(PatientsTable.patientFName, `%${search}%`),
-          ilike(PatientsTable.patientLName, `%${search}%`),
-          ilike(PatientsTable.email, `%${search}%`),
-          ilike(PatientsTable.patientId, `%${search}%`),
-          ilike(PatientsTable.mrno, `%${search}%`)
-        )
-      );
-    }
-
-    if (vendorId) {
-      conditions.push(eq(PatientsTable.vendorId, vendorId));
-    }
+  if (search) {
+  const searchCondition = or(
+    ilike(PatientsTable.patientFName, `%${search}%`),
+    ilike(PatientsTable.patientLName, `%${search}%`),
+    ilike(PatientsTable.email, `%${search}%`),
+    ilike(PatientsTable.patientId, `%${search}%`),
+    ilike(PatientsTable.mrno, `%${search}%`)
+  );
+  if (searchCondition) conditions.push(searchCondition);
+}
 
     if (gender) {
       conditions.push(eq(PatientsTable.gender, gender as "M" | "F" | "Other"));
@@ -48,7 +54,7 @@ export async function GET(req: NextRequest) {
       conditions.push(eq(PatientsTable.isActive, isActive === "true"));
     }
 
-    const where = conditions.length > 0 ? and(...conditions) : undefined;
+    const where = and(...conditions);
 
     // Sorting
     const orderColumn =
@@ -110,6 +116,8 @@ export async function GET(req: NextRequest) {
         .where(where),
     ]);
 
+    console.log(`Found ${patients.length} patients for vendor ${vendorCode}`);
+
     return NextResponse.json(
       {
         patients,
@@ -134,6 +142,12 @@ export async function GET(req: NextRequest) {
 // POST - Create a new patient
 export async function POST(req: NextRequest) {
   try {
+    // Get session to verify vendor
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     
     console.log("Received patient data:", JSON.stringify(body, null, 2));
@@ -207,7 +221,15 @@ export async function POST(req: NextRequest) {
       metabolomeRatio,
     } = body;
 
-    // Validate required fields (isPatientConsent is NOT required since it can be 0)
+    // Verify the vendorId matches the session user
+    if (vendorId !== session.user.id) {
+      return NextResponse.json(
+        { error: "Unauthorized: Vendor ID mismatch" },
+        { status: 403 }
+      );
+    }
+
+    // Validate required fields
     const requiredFields = {
       patientId,
       vendorId,
@@ -250,30 +272,40 @@ export async function POST(req: NextRequest) {
 
     console.log("Final consent value to save:", consentValue);
 
-    // Check if patientId already exists
+    // Check if patientId already exists for this vendor
     const [existing] = await db
       .select({ id: PatientsTable.id })
       .from(PatientsTable)
-      .where(eq(PatientsTable.patientId, patientId))
+      .where(
+        and(
+          eq(PatientsTable.patientId, patientId),
+          eq(PatientsTable.vendorId, vendorId)
+        )
+      )
       .limit(1);
 
     if (existing) {
       return NextResponse.json(
-        { error: "Patient ID already exists" },
+        { error: "Patient ID already exists for this vendor" },
         { status: 409 }
       );
     }
 
-    // Check if email already exists
+    // Check if email already exists for this vendor
     const [emailExists] = await db
       .select({ id: PatientsTable.id })
       .from(PatientsTable)
-      .where(eq(PatientsTable.email, email))
+      .where(
+        and(
+          eq(PatientsTable.email, email),
+          eq(PatientsTable.vendorId, vendorId)
+        )
+      )
       .limit(1);
 
     if (emailExists) {
       return NextResponse.json(
-        { error: "Email already exists" },
+        { error: "Email already exists for this vendor" },
         { status: 409 }
       );
     }
@@ -309,7 +341,7 @@ export async function POST(req: NextRequest) {
         medication,
         familyHistory,
         familyHistoryDetails,
-        isPatientConsent: consentValue, // Save as integer (0 or 1)
+        isPatientConsent: consentValue,
         mrno,
         TRF,
         tag,

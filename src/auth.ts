@@ -67,7 +67,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
 
       // Handle vendor session (initial login)
       if (account?.provider === 'vendor' && user) {
-        // @ts-expect-error - user object comes from vendor auth provider
+        
         token.role = 'VENDOR';
         // @ts-expect-error
         token.vendorCode = user.vendorCode;

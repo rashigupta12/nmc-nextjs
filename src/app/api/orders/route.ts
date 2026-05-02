@@ -1,5 +1,5 @@
-/*eslint-disable  @typescript-eslint/no-explicit-any */
-/*eslint-disable  @typescript-eslint/no-unused-vars*/
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // app/api/orders/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -10,9 +10,11 @@ import {
   PatientsTable, 
   TestCatalogTable,
   NewOrder,
-  NewSample 
+  NewSample,
+  VendorsTable
 } from '@/db/schema';
 import { eq, like, desc, or, sql, and } from 'drizzle-orm';
+import { auth } from '@/auth';
 
 // Input validation schema
 const CreateOrderSchema = z.object({
@@ -33,6 +35,15 @@ const CreateOrderSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Get session to verify vendor
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { Success: 'false', Error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     // Parse and validate request body
     const body = await request.json();
     const validationResult = CreateOrderSchema.safeParse(body);
@@ -64,15 +75,26 @@ export async function POST(request: NextRequest) {
       remark
     } = validationResult.data;
 
+    // Verify the vendorId matches the session user
+    if (vendorId !== session.user.id) {
+      return NextResponse.json(
+        { Success: 'false', Error: 'Unauthorized: Vendor ID mismatch' },
+        { status: 403 }
+      );
+    }
+
     try {
-      // 1. Validate patient exists
+      // 1. Validate patient exists and belongs to this vendor
       const patient = await db.query.PatientsTable.findFirst({
-        where: eq(PatientsTable.patientId, patientId.toUpperCase())
+        where: and(
+          eq(PatientsTable.patientId, patientId.toUpperCase()),
+          eq(PatientsTable.vendorId, vendorId)
+        )
       });
 
       if (!patient) {
         return NextResponse.json(
-          { Success: 'false', Error: 'Patient not found' },
+          { Success: 'false', Error: 'Patient not found or does not belong to this vendor' },
           { status: 404 }
         );
       }
@@ -294,9 +316,23 @@ function calculateTatDate(tatDays: number): string {
   return tatDate.toISOString().slice(0, 10);
 }
 
-// GET endpoint to fetch orders with patient and sample data
+// GET endpoint to fetch orders for the logged-in vendor
 export async function GET(request: NextRequest) {
   try {
+    // Get session to verify vendor
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const vendorId = session.user.id;
+    const vendorCode = session.user.vendorCode;
+
+    console.log("Fetching orders for vendor:", { vendorId, vendorCode });
+
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
@@ -307,34 +343,34 @@ export async function GET(request: NextRequest) {
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
 
-    // Build conditions array
-    const conditions = [];
+    // Build conditions array - ALWAYS filter by vendor
+    const conditions = [eq(OrdersTable.vendorId, vendorId)];
     
-    if (search) {
-      conditions.push(
-        or(
-          sql`${OrdersTable.orderNo} ILIKE ${`%${search}%`}`,
-          sql`${PatientsTable.patientFName} ILIKE ${`%${search}%`}`,
-          sql`${PatientsTable.patientLName} ILIKE ${`%${search}%`}`,
-          sql`${PatientsTable.email} ILIKE ${`%${search}%`}`,
-          sql`${PatientsTable.mobileNo} ILIKE ${`%${search}%`}`,
-          sql`${OrdersTable.remark} ILIKE ${`%${search}%`}`
-        )
-      );
-    }
+ if (search) {
+  const searchCondition = or(
+    sql`${OrdersTable.orderNo} ILIKE ${`%${search}%`}`,
+    sql`${PatientsTable.patientFName} ILIKE ${`%${search}%`}`,
+    sql`${PatientsTable.patientLName} ILIKE ${`%${search}%`}`,
+    sql`${PatientsTable.email} ILIKE ${`%${search}%`}`,
+    sql`${PatientsTable.mobileNo} ILIKE ${`%${search}%`}`,
+    sql`${OrdersTable.remark} ILIKE ${`%${search}%`}`
+  );
+  if (searchCondition) conditions.push(searchCondition);
+}
     
     if (shipmentStatus && shipmentStatus !== 'ALL') {
       conditions.push(eq(OrdersTable.shipmentStatus, shipmentStatus));
     }
-// Validate paymentStatus enum
-type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
-const validPaymentStatuses: PaymentStatus[] = ['PENDING', 'PAID', 'FAILED', 'REFUNDED'];
 
-if (paymentStatus && paymentStatus !== 'ALL') {
-  if (validPaymentStatuses.includes(paymentStatus as PaymentStatus)) {
-    conditions.push(eq(OrdersTable.paymentStatus, paymentStatus as PaymentStatus));
-  }
-}
+    // Validate paymentStatus enum
+    type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+    const validPaymentStatuses: PaymentStatus[] = ['PENDING', 'PAID', 'FAILED', 'REFUNDED'];
+
+    if (paymentStatus && paymentStatus !== 'ALL') {
+      if (validPaymentStatuses.includes(paymentStatus as PaymentStatus)) {
+        conditions.push(eq(OrdersTable.paymentStatus, paymentStatus as PaymentStatus));
+      }
+    }
     
     if (dateFrom) {
       conditions.push(sql`${OrdersTable.orderDate} >= ${dateFrom}`);
@@ -344,7 +380,19 @@ if (paymentStatus && paymentStatus !== 'ALL') {
       conditions.push(sql`${OrdersTable.orderDate} <= ${dateTo}`);
     }
 
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    // Create where clause and handle potential undefined
+    const whereClause = and(...conditions);
+    
+    // Since we always have at least the vendor condition, whereClause should never be undefined
+    // But TypeScript doesn't know that, so we need to handle it
+    if (!whereClause) {
+      // This should never happen since we always have at least one condition (vendorId)
+      console.error('No conditions provided for order query');
+      return NextResponse.json(
+        { success: false, error: 'Invalid query parameters' },
+        { status: 400 }
+      );
+    }
 
     // Execute query with joins to get patient and sample data
     const orders = await db
@@ -377,7 +425,7 @@ if (paymentStatus && paymentStatus !== 'ALL') {
           mobileNo: PatientsTable.mobileNo,
           mrno: PatientsTable.mrno,
         },
-        // Sample information (first sample)
+        // Sample information
         sample: {
           id: SamplesTable.id,
           sampleId: SamplesTable.sampleId,
@@ -389,7 +437,7 @@ if (paymentStatus && paymentStatus !== 'ALL') {
         }
       })
       .from(OrdersTable)
-      .leftJoin(PatientsTable, eq(OrdersTable.patientId, PatientsTable.id))
+      .innerJoin(PatientsTable, eq(OrdersTable.patientId, PatientsTable.id))
       .leftJoin(SamplesTable, eq(OrdersTable.sampleId, SamplesTable.id))
       .where(whereClause)
       .orderBy(desc(OrdersTable.createdAt))
@@ -431,10 +479,12 @@ if (paymentStatus && paymentStatus !== 'ALL') {
     const countResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(OrdersTable)
-      .leftJoin(PatientsTable, eq(OrdersTable.patientId, PatientsTable.id))
+      .innerJoin(PatientsTable, eq(OrdersTable.patientId, PatientsTable.id))
       .where(whereClause);
     
     const total = Number(countResult[0]?.count) || 0;
+
+    console.log(`Found ${orders.length} orders for vendor ${vendorCode}`);
 
     return NextResponse.json({
       success: true,

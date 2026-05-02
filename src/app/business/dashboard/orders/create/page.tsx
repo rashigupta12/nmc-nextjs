@@ -389,7 +389,7 @@ export default function CreateOrderPage() {
         collectionDate: format(formData.collectionDate, "yyyy-MM-dd"),
         collectionTime: formData.collectionTime + ":00",
         addedBy: user?.email || user?.name || "system",
-        vendorId: "ece454b1-7035-421d-9b35-1f5253d2ead9",
+        vendorId: user?.id,
         createdBy: user?.id,
         remark: formData.remark,
       };

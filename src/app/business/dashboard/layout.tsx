@@ -166,7 +166,7 @@ export default function VendorLayout({
                   isPatientsOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
-                <Link href="/business/dashboard/patients/list">
+                <Link href="/business/dashboard/patients">
                   <button
                     className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
                       pathname === "/business/dashboard/patients/list"
@@ -247,7 +247,7 @@ export default function VendorLayout({
                   isShipmentsOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
-                <Link href="/business/dashboard/shipments/list">
+                <Link href="/business/dashboard/shipment">
                   <button
                     className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
                       pathname === "/business/dashboard/shipments/list"
@@ -260,7 +260,7 @@ export default function VendorLayout({
                   </button>
                 </Link>
 
-                <Link href="/business/dashboard/shipments/create">
+                <Link href="/business/dashboard/shipment/create">
                   <button
                     className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
                       pathname === "/business/dashboard/shipments/create"

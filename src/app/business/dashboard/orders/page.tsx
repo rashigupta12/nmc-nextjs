@@ -16,25 +16,23 @@ import {
 import {
   Activity,
   Barcode,
-  CheckCircle,
+  CalendarIcon,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
   Clock,
-  Clock8,
   FileText,
   FlaskConical,
   Loader2,
-  Package,
   Search,
-  Truck,
-  Upload,
   User,
   X,
-  XCircle,
   PlusCircle,
-  Download,
-  Eye
+  Upload,
+  Eye,
+  CalendarDays,
+  Mail,
+  Phone,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -43,87 +41,71 @@ import { JSX, useCallback, useEffect, useMemo, useState } from "react";
 type Order = {
   id: string;
   orderNo: string;
-  sampleId: string | null;
-  patientId: string;
-  patientFName?: string;
-  patientLName?: string;
-  vendorId: string;
-  vendorName?: string;
-  createdBy: string;
-  createdByName?: string;
-  addedBy: string;
-  shipmentStatus: string;
   orderDate: string;
-  statusCode: string;
-  remark: string | null;
-  totalAmount: string | null;
-  currency: string;
-  paymentStatus: string;
   createdAt: string;
-  updatedAt: string;
-  sample?: {
+  patientId: string;
+  patient: {
+    id: string;
+    patientId: string;
+    patientFName: string;
+    patientLName: string;
+    gender: string;
+    age: string;
+    email: string;
+    mobileNo: string | null;
+    mrno: string | null;
+  };
+  sample: {
     id: string;
     sampleId: string;
-    testCatalogId: string;
-    testName?: string;
-    testCode?: string;
     sampleType: string;
     status: string;
     tatDueAt: string | null;
+    testCatalogId: string;
+    testName: string;
+    testCode: string;
     subtests: string[];
-  };
+    sampleTime?: string;
+  } | null;
+  remark: string | null;
 };
 
-// Map test codes to their corresponding report types
-const TEST_TO_REPORT_MAP: Record<string, { id: string; label: string }> = {
-  // NMC Genetics Tests
-  'NMC-MI01': { id: 'immunity', label: 'Immunity Report' },
-  'NMC-WH01': { id: 'women-health', label: "Women's Health Report" },
-  'NMC-SL01': { id: 'sleep', label: 'Sleep Report' },
-  'NMC-MH01': { id: 'men-health', label: "Men's Health Report" },
-  'NMC-EH01': { id: 'eye-health', label: 'Eye Health Report' },
-  'NMC-AI01': { id: 'autoimmune-health', label: 'Autoimmune Report' },
-  'NMC-KH01': { id: 'kidney-health', label: 'Kidney Health Report' },
-  
-  // Pharmacogenetic Tests
-  'NMC_CLOPI': { id: 'clopidogrel', label: 'Clopidogrel Report' },
-  'NMC_STN': { id: 'statin', label: 'Statin Report' },
-  'NMC_WAC': { id: 'warfarin', label: 'Warfarin Report' },
-  'NMC-HTN': { id: 'hypertension', label: 'Hypertension Report' },
+// Status styles mapping from schema
+const statusStyles: Record<string, string> = {
+  CREATED: "bg-gray-100 text-gray-700",
+  SHIPPED: "bg-indigo-100 text-indigo-700",
+  RECEIVED: "bg-blue-100 text-blue-700",
+  QC_PASSED: "bg-green-100 text-green-700",
+  QC_FAILED: "bg-red-100 text-red-700",
+  PROCESSING: "bg-yellow-100 text-yellow-700",
+  READY: "bg-purple-100 text-purple-700",
+  REPORT_GENERATED: "bg-cyan-100 text-cyan-700",
+  RELEASED: "bg-green-200 text-green-800",
+  RESAMPLING: "bg-orange-100 text-orange-700",
 };
 
-// Fallback: Map test names that might not have test codes
-const TEST_NAME_TO_REPORT_MAP: Record<string, { id: string; label: string }> = {
-  'Immunity': { id: 'immunity', label: 'Immunity Report' },
-  "Women's Health": { id: 'women-health', label: "Women's Health Report" },
-  'Sleep': { id: 'sleep', label: 'Sleep Report' },
-  "Men's Health": { id: 'men-health', label: "Men's Health Report" },
-  'Eye Health': { id: 'eye-health', label: 'Eye Health Report' },
-  'Autoimmune': { id: 'autoimmune-health', label: 'Autoimmune Report' },
-  'Kidney Health': { id: 'kidney-health', label: 'Kidney Health Report' },
-  'Clopidogrel': { id: 'clopidogrel', label: 'Clopidogrel Report' },
-  'Statin': { id: 'statin', label: 'Statin Report' },
-  'Warfarin': { id: 'warfarin', label: 'Warfarin Report' },
-  'Hypertension': { id: 'hypertension', label: 'Hypertension Report' },
+const statusLabels: Record<string, string> = {
+  CREATED: "Created",
+  SHIPPED: "Shipped",
+  RECEIVED: "Received",
+  QC_PASSED: "QC Passed",
+  QC_FAILED: "QC Failed",
+  PROCESSING: "Processing",
+  READY: "Ready",
+  REPORT_GENERATED: "Report Generated",
+  RELEASED: "Released",
+  RESAMPLING: "Resampling",
 };
 
-// Helper function to get report type for a test
-function getReportTypeForTest(testCode?: string, testName?: string): { id: string; label: string } | null {
-  // First try by test code
-  if (testCode && TEST_TO_REPORT_MAP[testCode]) {
-    return TEST_TO_REPORT_MAP[testCode];
-  }
-  
-  // Then try by test name
-  if (testName) {
-    for (const [key, value] of Object.entries(TEST_NAME_TO_REPORT_MAP)) {
-      if (testName.toLowerCase().includes(key.toLowerCase())) {
-        return value;
-      }
-    }
-  }
-  
-  return null;
+function getStatusBadge(status: string) {
+  const style = statusStyles[status] || "bg-gray-100 text-gray-700";
+  const label = statusLabels[status] || status;
+  return (
+    <Badge className={`${style} flex items-center gap-1 w-fit text-xs px-2 py-0.5`}>
+      <Activity className="h-3 w-3" />
+      {label}
+    </Badge>
+  );
 }
 
 export default function OrdersPage() {
@@ -131,15 +113,12 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [generatingReport, setGeneratingReport] = useState<string | null>(null);
   
   // Filters state
   const [filters, setFilters] = useState({
     search: '',
-    shipmentStatus: 'ALL',
-    paymentStatus: 'ALL',
-    dateFrom: '',
-    dateTo: '',
+    startDate: '',
+    endDate: '',
   });
 
   // Pagination
@@ -152,10 +131,8 @@ export default function OrdersPage() {
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams();
-    if (filters.shipmentStatus !== "ALL") params.set("shipmentStatus", filters.shipmentStatus);
-    if (filters.paymentStatus !== "ALL") params.set("paymentStatus", filters.paymentStatus);
-    if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
-    if (filters.dateTo) params.set("dateTo", filters.dateTo);
+    if (filters.startDate) params.set("dateFrom", filters.startDate);
+    if (filters.endDate) params.set("dateTo", filters.endDate);
     params.set("limit", "100");
 
     try {
@@ -166,35 +143,12 @@ export default function OrdersPage() {
         const mapped: Order[] = (data.orders || []).map((order: any) => ({
           id: order.id,
           orderNo: order.orderNo,
-          sampleId: order.sampleId,
-          patientId: order.patientId,
-          patientFName: order.patient?.patientFName,
-          patientLName: order.patient?.patientLName,
-          vendorId: order.vendorId,
-          vendorName: order.vendor?.name,
-          createdBy: order.createdBy,
-          createdByName: order.createdByUser?.name,
-          addedBy: order.addedBy,
-          shipmentStatus: order.shipmentStatus,
           orderDate: order.orderDate,
-          statusCode: order.statusCode,
-          remark: order.remark,
-          totalAmount: order.totalAmount,
-          currency: order.currency,
-          paymentStatus: order.paymentStatus,
           createdAt: order.createdAt,
-          updatedAt: order.updatedAt,
-          sample: order.sample ? {
-            id: order.sample.id,
-            sampleId: order.sample.sampleId,
-            testCatalogId: order.sample.testCatalogId,
-            testName: order.sample.testName,
-            testCode: order.sample.testCode,
-            sampleType: order.sample.sampleType,
-            status: order.sample.status,
-            tatDueAt: order.sample.tatDueAt,
-            subtests: order.sample.subtests || [],
-          } : undefined,
+          patientId: order.patientId,
+          patient: order.patient,
+          sample: order.sample,
+          remark: order.remark,
         }));
 
         setOrders(mapped);
@@ -209,7 +163,7 @@ export default function OrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters.startDate, filters.endDate]);
 
   useEffect(() => {
     fetchOrders();
@@ -226,11 +180,11 @@ export default function OrdersPage() {
     if (filters.search) {
       const term = filters.search.toLowerCase();
       filtered = filtered.filter((order) => {
-        const patientName = `${order.patientFName || ''} ${order.patientLName || ''}`.toLowerCase();
+        const patientName = `${order.patient?.patientFName || ''} ${order.patient?.patientLName || ''}`.toLowerCase();
         return (
           order.orderNo.toLowerCase().includes(term) ||
           patientName.includes(term) ||
-          (order.sampleId && order.sampleId.toLowerCase().includes(term)) ||
+          (order.sample?.sampleId && order.sample.sampleId.toLowerCase().includes(term)) ||
           (order.remark && order.remark.toLowerCase().includes(term))
         );
       });
@@ -256,60 +210,19 @@ export default function OrdersPage() {
     }
   }, [filteredOrders.length, page]);
 
-  const getShipmentStatusBadge = (status: string) => {
-    const config: Record<string, { label: string; className: string; icon: JSX.Element }> = {
-      Pending: { 
-        label: "Pending", 
-        className: "bg-yellow-100 text-yellow-800",
-        icon: <Clock8 className="h-3 w-3" />
-      },
-      CREATED: { 
-        label: "Created", 
-        className: "bg-gray-100 text-gray-800",
-        icon: <ClipboardList className="h-3 w-3" />
-      },
-      SHIPPED: { 
-        label: "Shipped", 
-        className: "bg-blue-100 text-blue-800",
-        icon: <Truck className="h-3 w-3" />
-      },
-      IN_TRANSIT: { 
-        label: "In Transit", 
-        className: "bg-purple-100 text-purple-800",
-        icon: <Package className="h-3 w-3" />
-      },
-      RECEIVED: { 
-        label: "Received", 
-        className: "bg-green-100 text-green-800",
-        icon: <CheckCircle className="h-3 w-3" />
-      },
-      PARTIALLY_RECEIVED: { 
-        label: "Partially Received", 
-        className: "bg-orange-100 text-orange-800",
-        icon: <Clock className="h-3 w-3" />
-      },
-    };
-    const defaultConfig = { 
-      label: status, 
-      className: "bg-gray-100 text-gray-800",
-      icon: <Activity className="h-3 w-3" />
-    };
-    const { label, className, icon } = config[status] || defaultConfig;
-    return (
-      <Badge className={`${className} flex items-center gap-1 w-fit`}>
-        {icon}
-        {label}
-      </Badge>
-    );
+  const handleFilter = () => {
+    fetchOrders();
   };
 
+  const handleReset = () => {
+    setFilters({
+      search: '',
+      startDate: '',
+      endDate: '',
+    });
+  };
 
-
-  const hasActiveFilters = filters.search !== '' || 
-    filters.shipmentStatus !== 'ALL' || 
-    filters.paymentStatus !== 'ALL' ||
-    filters.dateFrom !== '' ||
-    filters.dateTo !== '';
+  const hasActiveFilters = filters.search !== '' || filters.startDate !== '' || filters.endDate !== '';
 
   const handleUpload = (sampleId: string | null | undefined) => {
     if (!sampleId) {
@@ -337,58 +250,6 @@ export default function OrdersPage() {
     router.push(`/business/dashboard/additional-info?${params.toString()}`);
   };
 
-  const handleGenerateReport = async (sampleId: string | null | undefined, reportTypeId: string, format: 'pdf' | 'html' = 'html') => {
-    if (!sampleId) {
-      setMessage({ type: 'error', text: 'No sample ID available for this order' });
-      return;
-    }
-
-    const reportKey = `${sampleId}-${reportTypeId}`;
-    setGeneratingReport(reportKey);
-    
-    try {
-      const response = await fetch('/api/report/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sample_id: sampleId,
-          report_type: reportTypeId,
-          format,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.Error || 'Report generation failed');
-      }
-
-      if (format === 'pdf') {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${reportTypeId}-report-${sampleId}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        setMessage({ type: 'success', text: 'Report generated successfully!' });
-      } else if (format === 'html') {
-        const html = await response.text();
-        const newWindow = window.open();
-        if (newWindow) {
-          newWindow.document.write(html);
-          newWindow.document.close();
-        }
-      }
-    } catch (error) {
-      console.error('Report generation error:', error);
-      setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Failed to generate report' });
-    } finally {
-      setGeneratingReport(null);
-    }
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -399,31 +260,64 @@ export default function OrdersPage() {
 
   return (
     <div className="min-h-screen bg-gray-50/60">
-      <div className="mx-auto">
+      <div className="">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Order Management</h1>
+            <h1 className="text-2xl font-semibold text-gray-900">All Orders</h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              Manage orders, track shipments, and monitor test progress
+              Manage and track all test orders
             </p>
           </div>
           <Button asChild className="gap-2 bg-blue-600 hover:bg-blue-700">
-            <Link href="/business/dashboard/orders/create">
-              <ClipboardList className="h-4 w-4" /> Create Order
+            <Link href="/business/dashboard/shipment/create">
+              <ClipboardList className="h-4 w-4" /> Create Shipment
             </Link>
           </Button>
         </div>
 
-        {/* Filters */}
+        {/* Filters Section */}
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-5 shadow-sm">
           <div className="flex flex-wrap gap-3 items-end">
-            <div className="flex-1 min-w-[200px]">
-              <Label className="text-xs text-gray-500">Search</Label>
+            <div className="w-48">
+              <Label className="text-xs text-gray-500">Start Date</Label>
               <div className="relative mt-1">
+                <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                <Input
+                  type="date"
+                  value={filters.startDate}
+                  onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                  className="pl-8 h-9 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="w-48">
+              <Label className="text-xs text-gray-500">End Date</Label>
+              <div className="relative mt-1">
+                <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                <Input
+                  type="date"
+                  value={filters.endDate}
+                  onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                  className="pl-8 h-9 text-sm"
+                />
+              </div>
+            </div>
+
+            <Button
+              onClick={handleFilter}
+              className="h-9 bg-blue-600 hover:bg-blue-700"
+              size="sm"
+            >
+              Filter Orders
+            </Button>
+
+            <div className="flex-1 min-w-[200px]">
+              <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                 <Input
-                  placeholder="Order ID, Patient name, Sample ID..."
+                  placeholder="Search by Order ID, Patient, Sample ID..."
                   value={filters.search}
                   onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
                   className="pl-8 h-9 text-sm"
@@ -431,37 +325,11 @@ export default function OrdersPage() {
               </div>
             </div>
 
-            <div className="w-40">
-              <Label className="text-xs text-gray-500">From Date</Label>
-              <Input
-                type="date"
-                value={filters.dateFrom}
-                onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
-                className="h-9 text-sm"
-              />
-            </div>
-
-            <div className="w-40">
-              <Label className="text-xs text-gray-500">To Date</Label>
-              <Input
-                type="date"
-                value={filters.dateTo}
-                onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
-                className="h-9 text-sm"
-              />
-            </div>
-
             {hasActiveFilters && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setFilters({ 
-                  search: '', 
-                  shipmentStatus: 'ALL', 
-                  paymentStatus: 'ALL',
-                  dateFrom: '',
-                  dateTo: '',
-                })}
+                onClick={handleReset}
                 className="h-9 px-3"
               >
                 <X className="h-3.5 w-3.5 mr-1" /> Clear
@@ -500,138 +368,147 @@ export default function OrdersPage() {
         ) : (
           <>
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-gray-50">
-                    <TableHead className="font-semibold">Order Details</TableHead>
-                    <TableHead className="font-semibold">Patient Info</TableHead>
-                    <TableHead className="font-semibold">Test & Sample</TableHead>
-                    <TableHead className="font-semibold">Order Status</TableHead>
-                    <TableHead className="font-semibold text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedOrders.map((order) => {
-                    const patientName = `${order.patientFName || ''} ${order.patientLName || ''}`.trim() || 'N/A';
-                    const mainTest = order.sample;
-                    const testId = mainTest?.testCatalogId;
-                    const testCode = mainTest?.testCode;
-                    const testName = mainTest?.testName;
-                    
-                    // Get the appropriate report type for this test
-                    const reportType = getReportTypeForTest(testCode, testName);
-                    const isGenerating = generatingReport === `${order.sample?.sampleId}-${reportType?.id}`;
-                    
-                    return (
-                      <TableRow key={order.id} className="hover:bg-gray-50">
-                        <TableCell>
-                          <div>
-                            <div className="font-medium text-gray-900 flex items-center gap-2">
-                              <span className="text-blue-600">{order.orderNo}</span>
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1 space-x-2">
-                              <span>Created: {formatDate(order.createdAt)}</span>
-                            </div>
-                            {order.remark && (
-                              <div className="text-xs text-gray-400 mt-1 truncate max-w-[200px]">
-                                Note: {order.remark}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <User className="h-3.5 w-3.5 text-gray-400" />
-                              <span className="font-medium text-gray-900">{patientName}</span>
-                            </div>
-                            {order.sampleId && (
-                              <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                                <Barcode className="h-3 w-3" />
-                                <span>Sample: {order.sample?.sampleId || order.sampleId}</span>
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {mainTest ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50">
+                      <TableHead className="font-semibold">Order Info</TableHead>
+                      <TableHead className="font-semibold">Patient Info</TableHead>
+                      <TableHead className="font-semibold">Sample / Test</TableHead>
+                      <TableHead className="font-semibold">Status</TableHead>
+                      {/* <TableHead className="font-semibold text-right">Actions</TableHead> */}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedOrders.map((order) => {
+                      const patientName = `${order.patient?.patientFName || ''} ${order.patient?.patientLName || ''}`.trim() || 'N/A';
+                      const testId = order.sample?.testCatalogId;
+                      
+                      return (
+                        <TableRow key={order.id} className="hover:bg-gray-50">
+                          {/* Order Info Column */}
+                          <TableCell className="align-top">
                             <div>
-                              <div className="flex items-center gap-2 text-sm">
-                                <FlaskConical className="h-3.5 w-3.5 text-gray-400" />
-                                <span className="font-medium">{mainTest.testName || mainTest.testCode || 'N/A'}</span>
+                              <div className="font-medium text-gray-900">
+                                <span className="text-blue-600">{order.orderNo}</span>
                               </div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                Type: {mainTest.sampleType}
+                              <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                                <CalendarIcon className="h-3 w-3" />
+                                <span>{formatDate(order.orderDate)}</span>
                               </div>
-                              {mainTest.subtests && mainTest.subtests.length > 0 && (
-                                <div className="text-xs text-gray-400 mt-1">
-                                  +{mainTest.subtests.length} subtest(s)
+                              {order.remark && (
+                                <div className="text-xs text-gray-400 mt-1 max-w-[200px] truncate">
+                                  Note: {order.remark}
                                 </div>
                               )}
                             </div>
-                          ) : (
-                            <span className="text-sm text-gray-400">No test assigned</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-2">
-                            {getShipmentStatusBadge(order.shipmentStatus)}
-                            <div className="text-xs text-gray-400">
-                              Order Date: {formatDate(order.orderDate)}
+                          </TableCell>
+
+                          {/* Patient Info Column */}
+                          <TableCell className="align-top">
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <User className="h-3.5 w-3.5 text-gray-400" />
+                                <span className="font-medium text-gray-900 text-sm">{patientName}</span>
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                ID: {order.patient?.patientId || 'N/A'}
+                              </div>
+                              <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                                <Mail className="h-3 w-3" />
+                                <span className="truncate">{order.patient?.email || 'N/A'}</span>
+                              </div>
+                              {order.patient?.mobileNo && (
+                                <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                                  <Phone className="h-3 w-3" />
+                                  <span>{order.patient.mobileNo}</span>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            {/* Upload Sample Button */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleUpload(order.sample?.sampleId)}
-                              className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-700"
-                              title="Upload Sample"
-                              disabled={!order.sample?.sampleId}
-                            >
-                              <Upload className="h-4 w-4" />
-                            </Button>
+                          </TableCell>
 
-                            {/* Add Additional Info Button */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleAddInfo(order.sample?.sampleId, testId, order.patientId)}
-                              className="h-8 w-8 p-0 hover:bg-green-50 hover:text-green-700"
-                              title="Add Additional Information"
-                              disabled={!order.sample?.sampleId || !testId}
-                            >
-                              <PlusCircle className="h-4 w-4" />
-                            </Button>
+                          {/* Sample / Test Column */}
+                          <TableCell className="align-top">
+                            {order.sample ? (
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <FlaskConical className="h-3.5 w-3.5 text-gray-400" />
+                                  <span className="font-medium text-sm">{order.sample.testName || order.sample.testCode || 'N/A'}</span>
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1 space-y-0.5">
+                                  <div>Sample ID: {order.sample.sampleId}</div>
+                                  <div>Type: {order.sample.sampleType}</div>
+                                  {order.sample.tatDueAt && (
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      <span>TAT: {formatDate(order.sample.tatDueAt)}</span>
+                                    </div>
+                                  )}
+                                  {order.sample.subtests && order.sample.subtests.length > 0 && (
+                                    <div className="text-gray-400 text-xs">
+                                      +{order.sample.subtests.length} subtest(s)
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-400">No test assigned</span>
+                            )}
+                          </TableCell>
 
-                            {/* Generate Report Button - Only show if a matching report type exists */}
-                            {reportType && order.sample?.sampleId && testId && (
+                          {/* Status Column - ONLY using sample.status */}
+                          <TableCell className="align-top">
+                            {order.sample ? (
+                              <div className="space-y-2">
+                                {getStatusBadge(order.sample.status)}
+                              </div>
+                            ) : (
+                              <Badge className="bg-gray-100 text-gray-700">No Sample</Badge>
+                            )}
+                          </TableCell>
+
+                          {/* Actions Column */}
+                          {/* <TableCell className="text-right align-top">
+                            <div className="flex justify-end gap-1">
+                          
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleGenerateReport(order.sample?.sampleId, reportType.id, 'pdf')}
-                                className="h-8 px-2 gap-1 hover:bg-indigo-50 hover:text-indigo-700"
-                                title={reportType.label}
-                                disabled={isGenerating}
+                                onClick={() => handleUpload(order.sample?.sampleId)}
+                                className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-700"
+                                title="Upload Sample"
+                                disabled={!order.sample?.sampleId}
                               >
-                                {isGenerating ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <FileText className="h-4 w-4" />
-                                )}
-                                <span className="text-xs hidden sm:inline">Report</span>
+                                <Upload className="h-4 w-4" />
                               </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleAddInfo(order.sample?.sampleId, testId, order.patientId)}
+                                className="h-8 w-8 p-0 hover:bg-green-50 hover:text-green-700"
+                                title="Add Additional Information"
+                                disabled={!order.sample?.sampleId || !testId}
+                              >
+                                <PlusCircle className="h-4 w-4" />
+                              </Button>
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => router.push(`/business/dashboard/orders/${order.id}`)}
+                                className="h-8 w-8 p-0 hover:bg-purple-50 hover:text-purple-700"
+                                title="View Order Details"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell> */}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
 
             {/* Pagination */}
