@@ -1,4 +1,3 @@
-// app/api/admin/patients/route.ts
 export const runtime = "nodejs";
 
 import { db } from "@/db";
@@ -88,6 +87,9 @@ export async function GET(req: NextRequest) {
           hospitalName: PatientsTable.hospitalName,
           doctorFName: PatientsTable.doctorFName,
           doctorLName: PatientsTable.doctorLName,
+          height: PatientsTable.height,
+          weight: PatientsTable.weight,
+          isPatientConsent: PatientsTable.isPatientConsent,
           createdAt: PatientsTable.createdAt,
           updatedAt: PatientsTable.updatedAt,
           vendorName: VendorsTable.name,
@@ -133,6 +135,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    
+    console.log("Received patient data:", JSON.stringify(body, null, 2));
+    console.log("Consent value received:", body.isPatientConsent, "Type:", typeof body.isPatientConsent);
+
     const {
       patientId,
       vendorId,
@@ -201,14 +207,13 @@ export async function POST(req: NextRequest) {
       metabolomeRatio,
     } = body;
 
-    // Validate required fields
+    // Validate required fields (isPatientConsent is NOT required since it can be 0)
     const requiredFields = {
       patientId,
       vendorId,
       createdBy,
       doctorFName,
       hospitalName,
-  
       patientFName,
       patientLName,
       gender,
@@ -222,7 +227,6 @@ export async function POST(req: NextRequest) {
       smoking,
       chestPain,
       cardiacEnzyme,
-      isPatientConsent,
     };
 
     const missingFields = Object.entries(requiredFields)
@@ -235,6 +239,16 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Ensure isPatientConsent is an integer (0 or 1)
+    let consentValue = 0;
+    if (isPatientConsent !== undefined && isPatientConsent !== null) {
+      consentValue = typeof isPatientConsent === 'boolean' 
+        ? (isPatientConsent ? 1 : 0)
+        : (Number(isPatientConsent) === 1 ? 1 : 0);
+    }
+
+    console.log("Final consent value to save:", consentValue);
 
     // Check if patientId already exists
     const [existing] = await db
@@ -295,12 +309,12 @@ export async function POST(req: NextRequest) {
         medication,
         familyHistory,
         familyHistoryDetails,
-        isPatientConsent,
+        isPatientConsent: consentValue, // Save as integer (0 or 1)
         mrno,
         TRF,
         tag,
         smoking,
-        alcoholic,
+        alcoholic: alcoholic ? 1 : 0,
         medicalHistory,
         medication2,
         familyHistory1,
@@ -323,8 +337,10 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
+    console.log("Patient created with consent:", patient.isPatientConsent);
+
     return NextResponse.json(
-      { message: "Patient created successfully", patient },
+      { message: "Patient created successfully", data: patient },
       { status: 201 }
     );
   } catch (error) {

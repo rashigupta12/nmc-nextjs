@@ -22,6 +22,10 @@ import {
   HelpCircle,
   ShoppingCart,
   ClipboardList,
+  Building2,
+  UserPlus,
+  MessageSquare,
+  PlusCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -35,9 +39,11 @@ export default function VendorLayout({
   const pathname = usePathname();
   const router = useRouter();
 
-  // Open Patients by default
+  // Accordion states
   const [isPatientsOpen, setIsPatientsOpen] = useState(true);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
+  const [isShipmentsOpen, setIsShipmentsOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const handleLogout = async () => {
     await signOut({ redirectTo: "/auth/login" });
@@ -58,9 +64,17 @@ export default function VendorLayout({
     return pathname.startsWith("/business/dashboard/orders");
   };
 
+  const isShipmentsActive = () => {
+    return pathname.startsWith("/business/dashboard/shipments");
+  };
+
+  const isSettingsActive = () => {
+    return pathname.startsWith("/business/dashboard/settings");
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation Bar */}
+      {/* Top Navigation Bar - Sticky */}
       <nav className="bg-white shadow-sm border-b px-6 py-3 sticky top-0 z-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -68,7 +82,7 @@ export default function VendorLayout({
               NeoTech Business Partner Portal
             </h1>
             <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-              { "Business Partner"}
+              {"Business Partner"}
             </span>
           </div>
 
@@ -108,10 +122,10 @@ export default function VendorLayout({
         </div>
       </nav>
 
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className="w-64 bg-white border-r min-h-[calc(100vh-64px)] p-4 sticky top-[65px] overflow-y-auto">
-          <nav className="space-y-1">
+      <div className="flex relative">
+        {/* Sidebar - Fixed position */}
+        <aside className="w-64 bg-white border-r h-[calc(100vh-64px)] sticky top-[64px] overflow-y-auto shrink-0">
+          <nav className="p-4 space-y-1">
             {/* Dashboard */}
             <Link href="/business/dashboard">
               <button
@@ -126,7 +140,7 @@ export default function VendorLayout({
               </button>
             </Link>
 
-            {/* Patients Accordion Section */}
+            {/* 1. Patients Accordion Section */}
             <div className="space-y-1">
               <button
                 onClick={() => setIsPatientsOpen(!isPatientsOpen)}
@@ -152,10 +166,10 @@ export default function VendorLayout({
                   isPatientsOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
-                <Link href="/business/dashboard/patients">
+                <Link href="/business/dashboard/patients/list">
                   <button
                     className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                      pathname === "/business/dashboard/patients"
+                      pathname === "/business/dashboard/patients/list"
                         ? "bg-blue-50 text-blue-700"
                         : "text-gray-600 hover:bg-gray-100"
                     }`}
@@ -173,125 +187,155 @@ export default function VendorLayout({
                         : "text-gray-600 hover:bg-gray-100"
                     }`}
                   >
-                    <Users className="h-4 w-4" />
+                    <UserPlus className="h-4 w-4" />
                     <span className="text-sm">Add Patient</span>
+                  </button>
+                </Link>
+
+                <Link href="/business/dashboard/patients/enquiry">
+                  <button
+                    className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
+                      pathname === "/business/dashboard/patients/enquiry"
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    <span className="text-sm">Patient Enquiry</span>
                   </button>
                 </Link>
               </div>
             </div>
 
-            {/* Orders Accordion Section */}
+            {/* 2. All Orders */}
+            <Link href="/business/dashboard/orders">
+              <button
+                className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
+                  pathname.startsWith("/business/dashboard/orders") && pathname !== "/business/dashboard/orders/create"
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <ShoppingCart className={`h-4 w-4 ${pathname.startsWith("/business/dashboard/orders") && pathname !== "/business/dashboard/orders/create" ? "text-blue-700" : ""}`} />
+                <span className="text-sm font-medium">All Orders</span>
+              </button>
+            </Link>
+
+            {/* 3. Shipments - Create Shipment */}
             <div className="space-y-1">
               <button
-                onClick={() => setIsOrdersOpen(!isOrdersOpen)}
+                onClick={() => setIsShipmentsOpen(!isShipmentsOpen)}
                 className={`w-full flex items-center justify-between rounded-lg p-2 transition-colors ${
-                  isOrdersActive()
+                  isShipmentsActive()
                     ? "bg-blue-50 text-blue-700"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <Package className={`h-4 w-4 ${isOrdersActive() ? "text-blue-700" : ""}`} />
-                  <span className="text-sm font-medium">Orders</span>
+                  <Truck className={`h-4 w-4 ${isShipmentsActive() ? "text-blue-700" : ""}`} />
+                  <span className="text-sm font-medium">Shipments</span>
                 </div>
                 <ChevronDown
                   className={`h-4 w-4 transition-transform duration-200 ${
-                    isOrdersOpen ? "rotate-180" : ""
+                    isShipmentsOpen ? "rotate-180" : ""
                   }`}
                 />
               </button>
 
               <div
                 className={`ml-6 space-y-1 overflow-hidden transition-all duration-200 ${
-                  isOrdersOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                  isShipmentsOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
-                <Link href="/business/dashboard/orders">
+                <Link href="/business/dashboard/shipments/list">
                   <button
                     className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                      pathname === "/business/dashboard/orders"
+                      pathname === "/business/dashboard/shipments/list"
                         ? "bg-blue-50 text-blue-700"
                         : "text-gray-600 hover:bg-gray-100"
                     }`}
                   >
-                    <ShoppingCart className="h-4 w-4" />
-                    <span className="text-sm">List Orders</span>
+                    <ClipboardList className="h-4 w-4" />
+                    <span className="text-sm">List Shipments</span>
                   </button>
                 </Link>
 
-                <Link href="/business/dashboard/orders/create">
+                <Link href="/business/dashboard/shipments/create">
                   <button
                     className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                      pathname === "/business/dashboard/orders/create"
+                      pathname === "/business/dashboard/shipments/create"
                         ? "bg-blue-50 text-blue-700"
                         : "text-gray-600 hover:bg-gray-100"
                     }`}
                   >
-                    <Package className="h-4 w-4" />
-                    <span className="text-sm">Create Order</span>
+                    <PlusCircle className="h-4 w-4" />
+                    <span className="text-sm">Create Shipment</span>
                   </button>
                 </Link>
               </div>
             </div>
 
-            {/* Additional vendor sections (matching admin style) */}
-            <Link href="/business/dashboard/shipments">
+            {/* 4. Settings - Hospitals & Profile */}
+            <div className="space-y-1">
               <button
-                className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                  pathname.startsWith("/business/dashboard/shipments")
+                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                className={`w-full flex items-center justify-between rounded-lg p-2 transition-colors ${
+                  isSettingsActive()
                     ? "bg-blue-50 text-blue-700"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <Truck className={`h-4 w-4 ${pathname.startsWith("/business/dashboard/shipments") ? "text-blue-700" : ""}`} />
-                <span className="text-sm font-medium">Shipments ⚠️</span>
+                <div className="flex items-center gap-2">
+                  <Settings className={`h-4 w-4 ${isSettingsActive() ? "text-blue-700" : ""}`} />
+                  <span className="text-sm font-medium">Settings</span>
+                </div>
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform duration-200 ${
+                    isSettingsOpen ? "rotate-180" : ""
+                  }`}
+                />
               </button>
-            </Link>
 
-            <Link href="/business/dashboard/reports">
-              <button
-                className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                  pathname.startsWith("/business/dashboard/reports")
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-gray-700 hover:bg-gray-100"
+              <div
+                className={`ml-6 space-y-1 overflow-hidden transition-all duration-200 ${
+                  isSettingsOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
-                <FileText className={`h-4 w-4 ${pathname.startsWith("/business/dashboard/reports") ? "text-blue-700" : ""}`} />
-                <span className="text-sm font-medium">Reports ⚠️</span>
-              </button>
-            </Link>
+                <Link href="/business/dashboard/settings/hospitals">
+                  <button
+                    className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
+                      pathname === "/business/dashboard/settings/hospitals"
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Building2 className="h-4 w-4" />
+                    <span className="text-sm">Hospitals</span>
+                  </button>
+                </Link>
 
-            <Link href="/business/dashboard/analytics">
-              <button
-                className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                  pathname.startsWith("/business/dashboard/analytics")
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                <BarChart3 className={`h-4 w-4 ${pathname.startsWith("/business/dashboard/analytics") ? "text-blue-700" : ""}`} />
-                <span className="text-sm font-medium">Analytics ⚠️</span>
-              </button>
-            </Link>
-
-            <Link href="/business/dashboard/helpdesk">
-              <button
-                className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
-                  pathname.startsWith("/business/dashboard/helpdesk")
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                <HelpCircle className={`h-4 w-4 ${pathname.startsWith("/business/dashboard/helpdesk") ? "text-blue-700" : ""}`} />
-                <span className="text-sm font-medium">Helpdesk ⚠️</span>
-              </button>
-            </Link>
+                <Link href="/business/dashboard/settings/profile">
+                  <button
+                    className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
+                      pathname === "/business/dashboard/settings/profile"
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Users className="h-4 w-4" />
+                    <span className="text-sm">Profile</span>
+                  </button>
+                </Link>
+              </div>
+            </div>
           </nav>
         </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 p-6 overflow-auto">
-          {children}
+        {/* Main Content - Scrollable */}
+        <main className="flex-1 overflow-auto">
+          <div className="p-6">
+            {children}
+          </div>
         </main>
       </div>
     </div>

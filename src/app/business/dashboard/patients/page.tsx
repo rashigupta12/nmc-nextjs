@@ -2,6 +2,7 @@
 // src/app/(protected)/business/dashboard/patients/page.tsx
 "use client";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,25 +21,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import {
+  Activity,
   AlertCircle,
-  Calendar,
+  AlertTriangle,
+  CheckCircle,
   ChevronLeft,
   ChevronRight,
   Edit,
   Eye,
+  FileText,
   Loader2,
   Mail,
   Phone,
   Plus,
+  PlusCircleIcon,
   Search,
   Tag,
   Trash2,
   X,
-  Activity,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Swal from "sweetalert2";
 
@@ -46,38 +50,43 @@ type Patient = {
   id: string;
   patientId: string;
   patientFName: string;
-  patientMName?: string;
+  patientMName?: string | null;
   patientLName: string;
   gender: "M" | "F" | "Other";
-  dob: string;
+  dob: string | null;
   age: string;
   email: string;
-  mobileNo?: string;
+  mobileNo?: string | null;
   ethinicity: string;
   lifestyle: string;
   smoking: string;
   isActive: boolean;
-  mrno?: string;
-  tag?: string;
+  mrno?: string | null;
+  tag?: string | null;
   hospitalName: string;
   doctorFName: string;
-  doctorLName?: string;
+  doctorLName?: string | null;
   vendorName?: string;
   vendorCode?: string;
-  createdByName?: string;
+  createdByName?: string | null;
   createdAt: string;
+  height?: string;
+  weight?: string;
+  isPatientConsent: number; // 0 or 1 from API
+  TRF?: string | null;
 };
 
 export default function PatientsPage() {
+  const router = useRouter();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   // Filters state
   const [filters, setFilters] = useState({
-    search: '',
-    gender: 'ALL',
-    status: 'ALL',
+    search: "",
+    gender: "ALL",
+    status: "ALL",
   });
 
   // Pagination
@@ -123,6 +132,10 @@ export default function PatientsPage() {
         vendorCode: p.vendorCode,
         createdByName: p.createdByName,
         createdAt: p.createdAt,
+        height: p.height,
+        weight: p.weight,
+        isPatientConsent: p.isPatientConsent, // Keep as number 0 or 1
+        TRF: p.TRF,
       }));
 
       setPatients(mapped);
@@ -130,7 +143,7 @@ export default function PatientsPage() {
       setTotalRecords(mapped.length);
     } catch (err) {
       console.error("Failed to fetch patients:", err);
-      setMessage({ type: 'error', text: 'Failed to load patients' });
+      setMessage({ type: "error", text: "Failed to load patients" });
     } finally {
       setLoading(false);
     }
@@ -162,33 +175,55 @@ export default function PatientsPage() {
     if (!result.isConfirmed) return;
 
     try {
-      const res = await fetch(`/api/admin/patients/${patient.id}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`/api/admin/patients/${patient.id}`, { method: "DELETE" });
       if (res.ok) {
         const data = await res.json();
         if (data.softDeleted) {
           setPatients((prev) =>
-            prev.map((p) => (p.id === patient.id ? { ...p, isActive: false } : p)),
+            prev.map((p) => (p.id === patient.id ? { ...p, isActive: false } : p))
           );
-          setMessage({ type: 'success', text: 'Patient has been deactivated (has associated orders)' });
+          setMessage({ type: "success", text: "Patient has been deactivated (has associated orders)" });
         } else {
           setPatients((prev) => prev.filter((p) => p.id !== patient.id));
-          setMessage({ type: 'success', text: 'Patient deleted successfully' });
+          setMessage({ type: "success", text: "Patient deleted successfully" });
         }
       } else {
-        setMessage({ type: 'error', text: 'Failed to delete patient' });
+        setMessage({ type: "error", text: "Failed to delete patient" });
       }
     } catch (err) {
       console.error("Delete error:", err);
-      setMessage({ type: 'error', text: 'An error occurred while deleting' });
+      setMessage({ type: "error", text: "An error occurred while deleting" });
     }
+  };
+
+  // Navigate to order create page with patient data stored in localStorage
+  const handleCreateOrder = (patient: Patient) => {
+    // Clear any stale data first
+    localStorage.removeItem("selectedPatient");
+    localStorage.removeItem("selectedPatientId");
+
+    // Store complete patient object for the order create page
+    localStorage.setItem(
+      "selectedPatient",
+      JSON.stringify({
+        id: patient.id,
+        patientId: patient.patientId,
+        patientFName: patient.patientFName,
+        patientLName: patient.patientLName,
+        age: patient.age,
+        gender: patient.gender,
+        email: patient.email,
+        mobileNo: patient.mobileNo || "",
+      })
+    );
+
+    router.push("/business/dashboard/orders/create");
   };
 
   // Filter patients based on search
   const filteredPatients = useMemo(() => {
     let filtered = patients;
-    
+
     if (filters.search) {
       const term = filters.search.toLowerCase();
       filtered = filtered.filter((p) => {
@@ -201,7 +236,7 @@ export default function PatientsPage() {
         );
       });
     }
-    
+
     return filtered.sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
@@ -217,25 +252,20 @@ export default function PatientsPage() {
   useEffect(() => {
     setTotalRecords(filteredPatients.length);
     setTotalPages(Math.ceil(filteredPatients.length / itemsPerPage));
-    setPage(1);
-  }, [filteredPatients.length]);
+    if (page > Math.ceil(filteredPatients.length / itemsPerPage)) {
+      setPage(1);
+    }
+  }, [filteredPatients.length, page]);
 
-  const getStatusBadge = (isActive: boolean) => {
-    return isActive ? (
+  const getStatusBadge = (isActive: boolean) =>
+    isActive ? (
       <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Active</Badge>
     ) : (
-      <Badge variant="secondary" className="bg-gray-100 text-gray-600">
-        Inactive
-      </Badge>
+      <Badge variant="secondary" className="bg-gray-100 text-gray-600">Inactive</Badge>
     );
-  };
 
   const getGenderBadge = (gender: string) => {
-    const colors = {
-      M: "bg-blue-100 text-blue-800",
-      F: "bg-pink-100 text-pink-800",
-      Other: "bg-purple-100 text-purple-800",
-    };
+    const colors = { M: "bg-blue-100 text-blue-800", F: "bg-pink-100 text-pink-800", Other: "bg-purple-100 text-purple-800" };
     const labels = { M: "Male", F: "Female", Other: "Other" };
     return (
       <Badge className={`${colors[gender as keyof typeof colors]} hover:${colors[gender as keyof typeof colors]}`}>
@@ -244,35 +274,37 @@ export default function PatientsPage() {
     );
   };
 
-  const hasActiveFilters = filters.search !== '' || filters.gender !== 'ALL' || filters.status !== 'ALL';
+  const hasActiveFilters = filters.search !== "" || filters.gender !== "ALL" || filters.status !== "ALL";
 
-  const handleView = (id: string) => {
-    window.location.href = `/business/dashboard/patients/${id}`;
+  const handleView = (id: string) => { 
+    router.push(`/business/dashboard/patients/${id}`);
+  };
+  
+  const handleEdit = (id: string) => { 
+    router.push(`/business/dashboard/patients/${id}/edit`);
   };
 
-  const handleEdit = (id: string) => {
-    window.location.href = `/business/dashboard/patients/${id}/edit`;
-  };
-
-  // Helper function to format date
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "Not provided";
+    try {
+      return new Date(dateString).toLocaleDateString("en-US", { 
+        year: "numeric", 
+        month: "short", 
+        day: "numeric" 
+      });
+    } catch {
+      return "Invalid date";
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-50/60">
-      <div className=" mx-auto">
+      <div className="mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">Patient Management</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              Manage patient records, view details, and track medical data
-            </p>
+            <p className="text-sm text-gray-500 mt-0.5">Manage patient records, view details, and create orders</p>
           </div>
           <Button asChild className="gap-2 bg-blue-600 hover:bg-blue-700">
             <Link href="/business/dashboard/patients/create">
@@ -296,7 +328,6 @@ export default function PatientsPage() {
                 />
               </div>
             </div>
-            
             <div className="w-40">
               <Label className="text-xs text-gray-500">Gender</Label>
               <Select value={filters.gender} onValueChange={(v) => setFilters(prev => ({ ...prev, gender: v }))}>
@@ -311,7 +342,6 @@ export default function PatientsPage() {
                 </SelectContent>
               </Select>
             </div>
-
             <div className="w-40">
               <Label className="text-xs text-gray-500">Status</Label>
               <Select value={filters.status} onValueChange={(v) => setFilters(prev => ({ ...prev, status: v }))}>
@@ -325,14 +355,8 @@ export default function PatientsPage() {
                 </SelectContent>
               </Select>
             </div>
-
             {hasActiveFilters && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setFilters({ search: '', gender: 'ALL', status: 'ALL' })}
-                className="h-9 px-3"
-              >
+              <Button variant="outline" size="sm" onClick={() => setFilters({ search: "", gender: "ALL", status: "ALL" })} className="h-9 px-3">
                 <X className="h-3.5 w-3.5 mr-1" /> Clear
               </Button>
             )}
@@ -341,8 +365,8 @@ export default function PatientsPage() {
 
         {/* Stats */}
         <div className="flex justify-between items-center mb-3">
-          <p className="text-xs text-gray-400">
-            {loading ? 'Loading...' : `${totalRecords} patient(s)`}
+          <p className="text-xs text-gray-500">
+            {loading ? "Loading..." : `${totalRecords} patient(s) found`}
           </p>
           {loading && <Loader2 className="h-4 w-4 animate-spin text-gray-400" />}
         </div>
@@ -356,7 +380,7 @@ export default function PatientsPage() {
           <div className="text-center py-20 border rounded-lg bg-white">
             <AlertCircle className="h-10 w-10 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500">
-              {hasActiveFilters ? 'No patients match your filters' : 'No patients found. Add your first patient to get started!'}
+              {hasActiveFilters ? "No patients match your filters" : "No patients found. Add your first patient to get started!"}
             </p>
             {!hasActiveFilters && (
               <Button asChild className="mt-4" size="sm">
@@ -369,147 +393,151 @@ export default function PatientsPage() {
         ) : (
           <>
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-gray-50">
-                    <TableHead className="font-semibold">Patient Details</TableHead>
-                    <TableHead className="font-semibold">Contact</TableHead>
-                    <TableHead className="font-semibold">Medical Info</TableHead>
-                    <TableHead className="font-semibold">Status</TableHead>
-                    <TableHead className="font-semibold text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedPatients.map((patient) => {
-                    const fullName = `${patient.patientFName} ${patient.patientMName ? patient.patientMName + " " : ""}${patient.patientLName}`;
-                    return (
-                      <TableRow key={patient.id} className="hover:bg-gray-50">
-                        <TableCell>
-                          <div>
-                            <div className="font-medium text-gray-900 flex items-center gap-2 flex-wrap">
-                              {fullName}
-                              {patient.tag && (
-                                <span className="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
-                                  <Tag className="h-3 w-3 mr-1" />
-                                  {patient.tag}
-                                </span>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50">
+                      <TableHead className="font-semibold">Patient Details</TableHead>
+                      <TableHead className="font-semibold">Contact</TableHead>
+                      <TableHead className="font-semibold">Medical Info</TableHead>
+                      <TableHead className="font-semibold">Consent</TableHead>
+                      <TableHead className="font-semibold">Status</TableHead>
+                      <TableHead className="font-semibold text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedPatients.map((patient) => {
+                      const fullName = `${patient.patientFName} ${patient.patientMName ? patient.patientMName + " " : ""}${patient.patientLName}`;
+                      return (
+                        <TableRow key={patient.id} className="hover:bg-gray-50">
+                          <TableCell className="align-top">
+                            <div>
+                              <div className="font-medium text-gray-900 flex items-center gap-2 flex-wrap">
+                                {fullName}
+                                {patient.tag && (
+                                  <span className="inline-flex items-center px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs">
+                                    <Tag className="h-3 w-3 mr-1" />
+                                    {patient.tag}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1 space-x-2">
+                                <span>ID: {patient.patientId}</span>
+                                {patient.mrno && <span>| MR: {patient.mrno}</span>}
+                                <span>| {getGenderBadge(patient.gender)}</span>
+                                <span>| Age: {patient.age}</span>
+                              </div>
+                              {patient.dob && (
+                                <div className="text-xs text-gray-400 mt-1">
+                                  DOB: {formatDate(patient.dob)}
+                                </div>
+                              )}
+                              {patient.height && patient.weight && (
+                                <div className="text-xs text-gray-400 mt-1">
+                                  H: {patient.height}cm | W: {patient.weight}kg
+                                </div>
                               )}
                             </div>
-                            <div className="text-xs text-gray-500 mt-1 space-x-2">
-                              <span>ID: {patient.patientId}</span>
-                              {patient.mrno && <span>| MR: {patient.mrno}</span>}
-                              <span>| {getGenderBadge(patient.gender)}</span>
-                              <span>| Age: {patient.age}</span>
-                            </div>
-                            <div className="text-xs text-gray-400 mt-1">
-                              DOB: {formatDate(patient.dob)}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-sm">
-                              <Mail className="h-3.5 w-3.5 text-gray-400" />
-                              <span className="text-gray-700">{patient.email}</span>
-                            </div>
-                            {patient.mobileNo && (
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <div className="space-y-1">
                               <div className="flex items-center gap-2 text-sm">
-                                <Phone className="h-3.5 w-3.5 text-gray-400" />
-                                <span className="text-gray-700">{patient.mobileNo}</span>
+                                <Mail className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                                <span className="text-gray-700 break-all">{patient.email}</span>
                               </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1 text-sm">
-                            <div className="text-gray-700">
-                              <span className="font-medium">Hospital:</span> {patient.hospitalName}
+                              {patient.mobileNo && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Phone className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                                  <span className="text-gray-700">{patient.mobileNo}</span>
+                                </div>
+                              )}
                             </div>
-                            <div className="text-gray-700">
-                              <span className="font-medium">Doctor:</span> Dr. {patient.doctorFName} {patient.doctorLName || ""}
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <div className="space-y-1 text-sm">
+                              <div className="text-gray-700">
+                                <span className="font-medium">Hospital:</span> {patient.hospitalName}
+                              </div>
+                              <div className="text-gray-700">
+                                <span className="font-medium">Doctor:</span> Dr. {patient.doctorFName} {patient.doctorLName || ""}
+                              </div>
+                              {patient.vendorName && (
+                                <div className="text-xs text-gray-500">Vendor: {patient.vendorName}</div>
+                              )}
                             </div>
-                            {patient.vendorName && (
-                              <div className="text-xs text-gray-500">
-                                Vendor: {patient.vendorName}
-                              </div>
+                          </TableCell>
+                          <TableCell className="align-top">
+                            {patient.isPatientConsent === 1 ? (
+                              <Badge className="bg-green-100 text-green-800">
+                                <CheckCircle className="h-3 w-3 mr-1" /> Consented
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="bg-red-100 text-red-800">
+                                <AlertTriangle className="h-3 w-3 mr-1" /> No Consent
+                              </Badge>
                             )}
-                            {(patient.ethinicity || patient.lifestyle) && (
-                              <div className="text-xs text-gray-500 mt-1">
-                                {patient.ethinicity && <span>Ethnicity: {patient.ethinicity} | </span>}
-                                {patient.lifestyle && <span>Lifestyle: {patient.lifestyle}</span>}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-2">
-                            {getStatusBadge(patient.isActive)}
-                            {patient.createdByName && (
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <div className="space-y-2">
+                              {getStatusBadge(patient.isActive)}
                               <div className="text-xs text-gray-400">
                                 Created: {formatDate(patient.createdAt)}
                               </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleView(patient.id)}
-                              className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-700"
-                              title="View Details"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(patient.id)}
-                              className="h-8 w-8 p-0 hover:bg-amber-50 hover:text-amber-700"
-                              title="Edit"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(patient)}
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              title="Delete"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right align-top">
+                            <div className="flex justify-end gap-1">
+                            
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(patient.id)}
+                                className="h-8 w-8 p-0 hover:bg-amber-50 hover:text-amber-700"
+                                title="Edit"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleCreateOrder(patient)}
+                                className="h-8 w-8 p-0 hover:bg-green-50 hover:text-green-700"
+                                title="Create Order"
+                              >
+                                <PlusCircleIcon className="h-4 w-4" />
+                              </Button>
+                             
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex justify-center gap-2 mt-6">
+              <div className="flex justify-center items-center gap-4 mt-6">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage(p => p - 1)}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
                 >
-                  <ChevronLeft className="h-4 w-4" /> Previous
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Previous
                 </Button>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-gray-600">
                   Page {page} of {totalPages}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPage(p => p + 1)}
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                 >
-                  Next <ChevronRight className="h-4 w-4" />
+                  Next <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               </div>
             )}
@@ -519,14 +547,14 @@ export default function PatientsPage() {
 
       {/* Toast Message */}
       {message && (
-        <div className={`fixed bottom-4 right-4 flex items-center gap-2 px-4 py-2 rounded-lg shadow-lg text-sm text-white z-50 ${
-          message.type === 'success' ? 'bg-green-600' : 'bg-red-600'
-        }`}>
-          <Activity className="h-4 w-4" />
-          {message.text}
-          <button onClick={() => setMessage(null)} className="ml-2 opacity-70 hover:opacity-100">
-            <X className="h-3.5 w-3.5" />
-          </button>
+        <div className="fixed bottom-4 right-4 flex items-center gap-2 px-4 py-2 rounded-lg shadow-lg text-sm text-white z-50 animate-in slide-in-from-right-5">
+          <div className={`${message.type === "success" ? "bg-green-600" : "bg-red-600"} flex items-center gap-2 px-3 py-2 rounded-lg`}>
+            <Activity className="h-4 w-4" />
+            {message.text}
+            <button onClick={() => setMessage(null)} className="ml-2 opacity-70 hover:opacity-100">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -303,42 +303,7 @@ export default function OrdersPage() {
     );
   };
 
-  const getPaymentStatusBadge = (status: string) => {
-    const config: Record<string, { label: string; className: string; icon: JSX.Element }> = {
-      PENDING: { 
-        label: "Pending", 
-        className: "bg-yellow-100 text-yellow-800",
-        icon: <Clock className="h-3 w-3" />
-      },
-      PAID: { 
-        label: "Paid", 
-        className: "bg-green-100 text-green-800",
-        icon: <CheckCircle className="h-3 w-3" />
-      },
-      FAILED: { 
-        label: "Failed", 
-        className: "bg-red-100 text-red-800",
-        icon: <XCircle className="h-3 w-3" />
-      },
-      REFUNDED: { 
-        label: "Refunded", 
-        className: "bg-gray-100 text-gray-800",
-        icon: <XCircle className="h-3 w-3" />
-      },
-    };
-    const defaultConfig = { 
-      label: status, 
-      className: "bg-gray-100 text-gray-800",
-      icon: <Activity className="h-3 w-3" />
-    };
-    const { label, className, icon } = config[status] || defaultConfig;
-    return (
-      <Badge className={`${className} flex items-center gap-1 w-fit`}>
-        {icon}
-        {label}
-      </Badge>
-    );
-  };
+
 
   const hasActiveFilters = filters.search !== '' || 
     filters.shipmentStatus !== 'ALL' || 
