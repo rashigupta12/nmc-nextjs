@@ -28,6 +28,7 @@ import {
   FileSearch,
   Info,
   PlusCircle,
+  ShoppingCart,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -206,6 +207,20 @@ export default function AdminLayout({
                 <span className="text-sm font-medium">Shipments</span>
               </button>
             </Link>
+
+              <Link href="/dashboard/admin/orders">
+              <button
+                className={`w-full flex items-center gap-2 rounded-lg p-2 transition-colors ${
+                  pathname.startsWith("/dashboard/admin/orders") && pathname !== "/dashboard/admin/orders/create"
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                <ShoppingCart className={`h-4 w-4 ${pathname.startsWith("/dashboard/admin/orders") && pathname !== "/dashboard/admin/orders/create" ? "text-blue-700" : ""}`} />
+                <span className="text-sm font-medium">All Orders</span>
+              </button>
+            </Link>
+
 
             {/* Genetic Data Accordion Section */}
             <div className="space-y-1">
